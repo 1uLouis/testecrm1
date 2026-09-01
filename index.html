@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fera CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">F</div>
+      <div class="brand-text">
+        <div class="name">Fera CRM</div>
+        <div class="sub">Comercial &amp; Vendas</div>
+      </div>
+    </div>
+
+    <div class="proj-switch">
+      <span>Projeto: <b id="active-proj-label">Yuri Cerri</b></span>
+      <span>⌄</span>
+    </div>
+
+    <nav class="navgroup" id="mainnav">
+      <button class="navitem active" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Dashboard
+      </button>
+      <button class="navitem" data-page="quadro">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg>
+        Quadro de Leads
+      </button>
+      <button class="navitem" data-page="gestao">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        Gestão de Leads
+      </button>
+      <button class="navitem" data-page="tarefas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l2 2 4-4"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+        Tarefas
+      </button>
+      <button class="navitem" data-page="calendario">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        Calendário
+      </button>
+      <button class="navitem" data-page="time">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="18" cy="9" r="2.4"/><path d="M22 20c0-2.6-2-4.7-4.6-5"/></svg>
+        Time
+      </button>
+    </nav>
+
+    <div class="navlabel">Conta</div>
+    <nav class="navgroup">
+      <button class="navitem" data-page="projetos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l3-4h12l3 4"/><rect x="3" y="7" width="18" height="14" rx="2"/></svg>
+        Projetos
+      </button>
+      <button class="navitem" data-page="administracao">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.2a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.2a1.7 1.7 0 001.6-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.2a1.7 1.7 0 001 1.6 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.6 1H21a2 2 0 110 4h-.2a1.7 1.7 0 00-1.6 1z"/></svg>
+        Administração
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="navitem" data-page="assistencia">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.7-2.5 1.8-2.5 3.5M12 17h.01"/></svg>
+        Assistência
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">Dashboard</h1>
+        <div class="crumb" id="page-crumb">Yuri Cerri – Web Start</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn" id="btn-criar-tarefa">＋ Criar Tarefa</button>
+        <button class="btn btn-primary" id="btn-agendar">Agendar Chamada</button>
+        <div class="avatar">FC</div>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+
+      <!-- ================= DASHBOARD ================= -->
+      <section class="page active" id="page-dashboard">
+        <div class="section-head">
+          <div>
+            <h2>Visão Geral</h2>
+            <p>Resultados do período selecionado</p>
+          </div>
+          <button class="btn btn-primary" id="btn-lancar-venda">＋ Lançar Venda</button>
+        </div>
+        <div class="grid grid-5" style="margin-bottom:18px;">
+          <div class="card metric"><div class="label">Receita Total</div><div class="value" id="m-receita">R$ 0</div><div class="hint" id="m-receita-hint">0 vendas no período</div></div>
+          <div class="card metric"><div class="label">Ticket Médio</div><div class="value" id="m-ticket">R$ 0</div><div class="hint">Por venda fechada</div></div>
+          <div class="card metric"><div class="label">Caixa Gerado (Líq.)</div><div class="value" id="m-caixa">R$ 0</div><div class="hint">Após taxas de pagamento</div></div>
+          <div class="card metric"><div class="label">Leads no Período</div><div class="value" id="m-leads">0</div><div class="hint">Leads registrados</div></div>
+          <div class="card metric"><div class="label">Taxa de Conversão</div><div class="value" id="m-conv">0%</div><div class="hint">Leads que viraram venda</div></div>
+        </div>
+
+        <div class="grid grid-2" style="margin-bottom:18px;">
+          <div class="card">
+            <div class="card-title">Receita por Closer</div>
+            <div class="card-sub">Quanto cada closer trouxe em vendas fechadas</div>
+            <div class="barlist" id="chart-closer"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Comissão de SDR por Venda</div>
+            <div class="card-sub">Percentual definido por SDR aplicado sobre as vendas geradas</div>
+            <div class="barlist" id="chart-sdr"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-title">Status dos Leads</div>
+            <div class="card-sub">Distribuição dos leads por etapa do funil</div>
+            <div class="barlist" id="chart-status"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Vendas Recentes</div>
+            <div class="card-sub">Últimas vendas lançadas no sistema</div>
+            <div id="vendas-recentes" style="display:flex;flex-direction:column;gap:9px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= QUADRO DE LEADS ================= -->
+      <section class="page" id="page-quadro">
+        <div class="section-head">
+          <div>
+            <h2>Quadro de Leads</h2>
+            <p>Arraste os cards entre as colunas para mover um lead de etapa</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn" id="btn-nova-coluna">＋ Nova Coluna</button>
+            <button class="btn" id="btn-nova-tarefa-quadro">＋ Nova Tarefa</button>
+          </div>
+        </div>
+        <div class="kanban" id="kanban-board"></div>
+      </section>
+
+      <!-- ================= GESTÃO DE LEADS ================= -->
+      <section class="page" id="page-gestao">
+        <div class="section-head">
+          <div><h2>Gestão de Leads</h2><p>Todos os leads do projeto, com responsável e etapa atual</p></div>
+        </div>
+        <div class="card" style="padding:0;overflow:auto;">
+          <table>
+            <thead><tr><th>Lead</th><th>Origem</th><th>Etapa</th><th>SDR</th><th>Closer</th><th>Telefone</th></tr></thead>
+            <tbody id="tbl-leads"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= TAREFAS ================= -->
+      <section class="page" id="page-tarefas">
+        <div class="section-head">
+          <div><h2>Tarefas</h2><p>O que precisa ser feito hoje pelo time</p></div>
+        </div>
+        <div class="card" style="padding:0;">
+          <table>
+            <thead><tr><th style="width:36px;"></th><th>Tarefa</th><th>Responsável</th><th>Prazo</th></tr></thead>
+            <tbody id="tbl-tarefas"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= CALENDÁRIO ================= -->
+      <section class="page" id="page-calendario">
+        <div class="section-head">
+          <div><h2>Calendário</h2><p>Clique em um horário livre para agendar, ou em um evento para editar e reorganizar</p></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn" id="cal-prev">‹</button>
+            <span id="cal-range" style="font-size:12.5px;font-weight:600;color:var(--slate);white-space:nowrap;"></span>
+            <button class="btn" id="cal-next">›</button>
+            <button class="btn btn-primary" id="btn-novo-evento">＋ Novo Evento</button>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:auto;">
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+      </section>
+
+      <!-- ================= TIME ================= -->
+      <section class="page" id="page-time">
+        <div class="section-head">
+          <div><h2>Gerenciar Time</h2><p>SDRs e Closers do projeto, com a comissão de cada pessoa</p></div>
+        </div>
+        <div class="tabs">
+          <button class="tab active" data-tab="sdr">SDRs</button>
+          <button class="tab" data-tab="closer">Closers</button>
+        </div>
+
+        <div id="tab-sdr">
+          <div class="section-head" style="margin-bottom:14px;">
+            <div>
+              <h3 style="font-size:15px;">SDRs</h3>
+              <p class="card-sub" style="margin-bottom:0;">A comissão de cada SDR é aplicada sobre o valor das vendas geradas por ele</p>
+            </div>
+            <button class="btn btn-primary" id="btn-add-sdr">＋ Adicionar SDR</button>
+          </div>
+          <div class="card" style="padding:0;overflow:auto;">
+            <table>
+              <thead><tr><th>Nome</th><th>Email</th><th>Comissão</th><th>Vendas geradas</th><th>Comissão a pagar</th><th></th></tr></thead>
+              <tbody id="tbl-sdr"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-closer" style="display:none;">
+          <div class="section-head" style="margin-bottom:14px;">
+            <div><h3 style="font-size:15px;">Closers</h3><p class="card-sub" style="margin-bottom:0;">Comissão aplicada sobre o valor fechado por cada closer</p></div>
+            <button class="btn btn-primary" id="btn-add-closer">＋ Adicionar Closer</button>
+          </div>
+          <div class="card" style="padding:0;overflow:auto;">
+            <table>
+              <thead><tr><th>Nome</th><th>Email</th><th>Comissão</th><th>Vendas fechadas</th><th>Comissão a pagar</th><th></th></tr></thead>
+              <tbody id="tbl-closer"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PROJETOS ================= -->
+      <section class="page" id="page-projetos">
+        <div class="section-head"><div><h2>Projetos</h2><p>Inicie um novo projeto para gerenciar uma equipe separada de leads, SDRs e closers</p></div></div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-title">Criar Novo Projeto</div>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <input class="field-inline" id="new-proj-name" placeholder="ex: Campanha Enterprise Q3" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:13.5px;">
+            <button class="btn btn-primary" id="btn-criar-projeto">Criar Projeto</button>
+          </div>
+        </div>
+        <h3 style="font-size:14px;margin-bottom:12px;">Seus Projetos</h3>
+        <div class="proj-grid" id="proj-grid"></div>
+      </section>
+
+      <!-- ================= ADMINISTRAÇÃO ================= -->
+      <section class="page" id="page-administracao">
+        <div class="section-head"><div><h2>Administração do Projeto</h2><p>Formas de pagamento, comissões padrão e acesso</p></div></div>
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-title">Formas de Pagamento</div>
+            <div class="card-sub">Taxas aplicadas sobre cada forma de recebimento</div>
+            <table>
+              <thead><tr><th>Nome</th><th>Taxa</th></tr></thead>
+              <tbody>
+                <tr><td>Cartão</td><td>3,50%</td></tr>
+                <tr><td>Boleto</td><td>1,95%</td></tr>
+                <tr><td>Pix</td><td>0,99%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-title">Comissões Padrão da Equipe</div>
+            <div class="card-sub">Usadas quando uma pessoa não tem um percentual individual definido</div>
+            <div class="modal-body" style="padding:0;">
+              <div class="row2">
+                <div class="field"><label>Comissão SDR padrão (%)</label><input type="number" value="3"></div>
+                <div class="field"><label>Comissão Closer padrão (%)</label><input type="number" value="8"></div>
+              </div>
+              <div class="field helper">Ao adicionar um SDR ou Closer sem definir um valor próprio, esse percentual padrão é usado no cálculo.</div>
+              <button class="btn btn-primary" style="align-self:flex-start;">Salvar Comissões Padrão</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ASSISTÊNCIA ================= -->
+      <section class="page" id="page-assistencia">
+        <div class="section-head"><div><h2>Assistência</h2><p>Precisa de ajuda com o Fera CRM?</p></div></div>
+        <div class="card empty">
+          <div style="font-weight:700;color:var(--ink);">Fale com o suporte do Fera CRM</div>
+          <div>Chame no WhatsApp ou envie um e-mail para suporte@feracrm.com</div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALS ROOT -->
+<div id="modals-root"></div>
+
+<script src="js/state.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
