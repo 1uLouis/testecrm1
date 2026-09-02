@@ -32,7 +32,7 @@ function renderDashboard(){
     <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border:1px solid var(--line);border-radius:8px;">
       <div>
         <div style="font-weight:700;font-size:12.5px;">${v.cliente}</div>
-        <div style="font-size:11px;color:var(--slate);">${v.closer} · ${v.forma} · ${v.data}</div>
+        <div style="font-size:11px;color:var(--slate);">${v.closer_name} · ${v.forma} · ${v.data}</div>
       </div>
       <span class="pill pill-moss">${fmtBRL(v.valor)}</span>
     </div>`).join('') : '<div class="empty">Nenhuma venda lançada ainda</div>';
@@ -84,17 +84,18 @@ function renderKanban(){
       const el = document.createElement('div');
       el.className = 'kcard';
       el.draggable = true;
+      el.dataset.id = lead.id;
       el.innerHTML = `
         <div class="ktag">${lead.tag}</div>
         <div class="kname">${lead.name}</div>
         <div class="kmeta">${lead.meta}</div>
         <div class="ktags">
-          ${lead.sdr ? `<span class="kbadge sdr">SDR: ${lead.sdr}</span>` : ''}
-          ${lead.closer ? `<span class="kbadge closer">Closer: ${lead.closer}</span>` : ''}
+          ${lead.sdr_name ? `<span class="kbadge sdr">SDR: ${lead.sdr_name}</span>` : ''}
+          ${lead.closer_name ? `<span class="kbadge closer">Closer: ${lead.closer_name}</span>` : ''}
         </div>
         ${lead.description ? `<div class="kdesc">${lead.description}</div>` : ''}
       `;
-      el.addEventListener('dragstart', ()=>{ dragCtx = { col: col.key, idx }; el.classList.add('dragging'); });
+      el.addEventListener('dragstart', ()=>{ dragCtx = { col: col.key, idx, id: lead.id }; el.classList.add('dragging'); });
       el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
       el.addEventListener('click', (e)=>{ if(e.target.tagName!=='INPUT') openLeadModal(col.key, idx); });
       cardsWrap.appendChild(el);
@@ -102,13 +103,15 @@ function renderKanban(){
 
     colEl.addEventListener('dragover', e=>{ e.preventDefault(); colEl.classList.add('dragover'); });
     colEl.addEventListener('dragleave', ()=> colEl.classList.remove('dragover'));
-    colEl.addEventListener('drop', e=>{
+    colEl.addEventListener('drop', async e=>{
       e.preventDefault();
       colEl.classList.remove('dragover');
       if(!dragCtx) return;
       const [lead] = state.leads[dragCtx.col].splice(dragCtx.idx,1);
       if(!state.leads[col.key]) state.leads[col.key] = [];
       state.leads[col.key].push(lead);
+      // Persiste no banco
+      await updateLeadStatus(dragCtx.id, col.key);
       dragCtx = null;
       renderKanban();
       renderGestaoLeads();
@@ -145,13 +148,16 @@ function openAddColumnModal(){
   const $ = id => document.getElementById(id);
   $('col-cancel').addEventListener('click', closeAddColumnModal);
   $('col-overlay').addEventListener('click', e=>{ if(e.target.id==='col-overlay') closeAddColumnModal(); });
-  $('col-save').addEventListener('click', ()=>{
+  $('col-save').addEventListener('click', async ()=>{
     const title = $('col-name').value.trim();
     if(!title){ $('col-name').focus(); return; }
     
     const key = title.toLowerCase().replace(/[^a-z0-9]/g, '') + Date.now().toString().slice(-4);
+    const position = colDefs.length;
     colDefs.push({ key, title });
     state.leads[key] = [];
+    // Persiste no banco
+    await insertColumn(key, title, position);
     
     closeAddColumnModal();
     renderKanban();
@@ -165,7 +171,9 @@ document.getElementById('btn-nova-coluna')?.addEventListener('click', openAddCol
 /* ---------------- Modal: Novo Lead / Editar Lead ---------------- */
 function openLeadModal(colKey, idx){
   const isEdit = idx !== null && idx !== undefined;
-  const lead = isEdit ? state.leads[colKey][idx] : { name:'', instagram:'', phone:'', origin:'Instagram', description:'', sdr:'', closer:'', tag:'Novo lead' };
+  const lead = isEdit
+    ? state.leads[colKey][idx]
+    : { name:'', instagram:'', phone:'', origin:'Instagram', description:'', sdr_name:'', closer_name:'', tag:'Novo lead' };
   const teamOptions = (arr, selected) => arr.map(p=>`<option value="${p.name}" ${p.name===selected?'selected':''}>${p.name}</option>`).join('');
   const root = document.getElementById('modals-root');
   root.innerHTML = `
@@ -190,11 +198,11 @@ function openLeadModal(colKey, idx){
           <div class="row2">
             <div class="field">
               <label>SDR (primeiro contato)</label>
-              <select id="ld-sdr"><option value="">Nenhum</option>${teamOptions(state.sdrs, lead.sdr)}</select>
+              <select id="ld-sdr"><option value="">Nenhum</option>${teamOptions(state.sdrs, lead.sdr_name)}</select>
             </div>
             <div class="field">
               <label>Closer (fechamento)</label>
-              <select id="ld-closer"><option value="">Nenhum</option>${teamOptions(state.closers, lead.closer)}</select>
+              <select id="ld-closer"><option value="">Nenhum</option>${teamOptions(state.closers, lead.closer_name)}</select>
             </div>
           </div>
           <div class="field"><label>Descrição breve do lead</label><input id="ld-desc" placeholder="Ex: interessado no plano X, pediu retorno à tarde" value="${lead.description}"></div>
@@ -213,28 +221,35 @@ function openLeadModal(colKey, idx){
   $('ld-cancel').addEventListener('click', closeLeadModal);
   $('lead-overlay').addEventListener('click', e=>{ if(e.target.id==='lead-overlay') closeLeadModal(); });
   if(isEdit){
-    $('ld-delete').addEventListener('click', ()=>{
+    $('ld-delete').addEventListener('click', async ()=>{
+      await deleteLead(lead.id);
       state.leads[colKey].splice(idx,1);
       closeLeadModal(); renderKanban(); renderGestaoLeads(); renderDashboard();
     });
   }
-  $('ld-save').addEventListener('click', ()=>{
+  $('ld-save').addEventListener('click', async ()=>{
     const name = $('ld-name').value.trim();
     if(!name){ $('ld-name').focus(); return; }
-    const updated = {
+    const payload = {
       name,
-      instagram: $('ld-instagram').value.trim(),
-      phone: $('ld-phone').value.trim(),
-      origin: $('ld-origin').value,
-      sdr: $('ld-sdr').value,
-      closer: $('ld-closer').value,
+      instagram:   $('ld-instagram').value.trim(),
+      phone:       $('ld-phone').value.trim(),
+      origin:      $('ld-origin').value,
+      sdr_name:    $('ld-sdr').value,
+      closer_name: $('ld-closer').value,
       description: $('ld-desc').value.trim(),
-      tag: lead.tag || 'Novo lead',
-      meta: `${$('ld-origin').value} · ${isEdit ? 'atualizado agora' : 'adicionado agora'}`,
+      tag:         lead.tag || 'Novo lead',
+      meta:        `${$('ld-origin').value} · ${isEdit ? 'atualizado agora' : 'adicionado agora'}`,
+      status:      colKey,
     };
     if(!state.leads[colKey]) state.leads[colKey] = [];
-    if(isEdit){ state.leads[colKey][idx] = updated; }
-    else { state.leads[colKey].push(updated); }
+    if(isEdit){
+      await updateLead(lead.id, payload);
+      state.leads[colKey][idx] = { ...lead, ...payload };
+    } else {
+      const saved = await insertLead(payload);
+      state.leads[colKey].push(saved || payload);
+    }
     closeLeadModal(); renderKanban(); renderGestaoLeads(); renderDashboard();
   });
 }
@@ -249,8 +264,8 @@ function renderGestaoLeads(){
         <td><div class="name-cell"><span class="dot" style="background:var(--ember)"></span>${lead.name}</div></td>
         <td>${lead.origin || lead.meta.split('·')[0].trim()}</td>
         <td><span class="pill pill-ember">${col.title}</span></td>
-        <td>${lead.sdr || '—'}</td>
-        <td>${lead.closer || '—'}</td>
+        <td>${lead.sdr_name || '—'}</td>
+        <td>${lead.closer_name || '—'}</td>
         <td>${lead.phone || lead.instagram || '—'}</td>
       </tr>`);
     });
@@ -262,15 +277,17 @@ function renderGestaoLeads(){
 function renderTarefas(){
   document.getElementById('tbl-tarefas').innerHTML = state.tasks.map((t,i)=>`
     <tr>
-      <td><input type="checkbox" ${t.done?'checked':''} data-taskidx="${i}"></td>
+      <td><input type="checkbox" ${t.done?'checked':''} data-taskid="${t.id}" data-taskidx="${i}"></td>
       <td style="${t.done?'text-decoration:line-through;color:var(--slate);':''}">${t.title}</td>
       <td>${t.owner}</td>
       <td>${t.due}</td>
     </tr>
   `).join('');
-  document.querySelectorAll('[data-taskidx]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{
-      state.tasks[cb.dataset.taskidx].done = cb.checked;
+  document.querySelectorAll('[data-taskid]').forEach(cb=>{
+    cb.addEventListener('change', async ()=>{
+      const idx = +cb.dataset.taskidx;
+      state.tasks[idx].done = cb.checked;
+      await updateTask(cb.dataset.taskid, { done: cb.checked });
       renderTarefas();
     });
   });
@@ -295,12 +312,12 @@ function getWeekDates(){
 }
 
 function layoutDayEvents(events){
-  const sorted = [...events].sort((a,b)=>a.start-b.start);
+  const sorted = [...events].sort((a,b)=>a.start_time-b.start_time);
   const lanesEnd = [];
   sorted.forEach(ev=>{
-    let lane = lanesEnd.findIndex(end => end <= ev.start);
-    if(lane === -1){ lane = lanesEnd.length; lanesEnd.push(ev.end); }
-    else { lanesEnd[lane] = ev.end; }
+    let lane = lanesEnd.findIndex(end => end <= ev.start_time);
+    if(lane === -1){ lane = lanesEnd.length; lanesEnd.push(ev.end_time); }
+    else { lanesEnd[lane] = ev.end_time; }
     ev._lane = lane;
   });
   const maxLanes = lanesEnd.length || 1;
@@ -336,8 +353,8 @@ function renderCalendario(){
     const col = grid.querySelector(`.cal-daycol[data-day="${dayIdx}"]`);
     const dayEvents = layoutDayEvents(state.events.filter(e=>e.day===dayIdx));
     dayEvents.forEach(ev=>{
-      const top = (ev.start-CAL_START)*CAL_ROWH;
-      const height = Math.max((ev.end-ev.start)*CAL_ROWH - 3, 20);
+      const top = (ev.start_time-CAL_START)*CAL_ROWH;
+      const height = Math.max((ev.end_time-ev.start_time)*CAL_ROWH - 3, 20);
       const widthPct = 100/ev._lanes;
       const el = document.createElement('div');
       el.className = 'cal-event' + (ev._lane%2? ' moss':'');
@@ -345,8 +362,8 @@ function renderCalendario(){
       el.style.height = height+'px';
       el.style.left = `calc(${ev._lane*widthPct}% + 2px)`;
       el.style.width = `calc(${widthPct}% - 4px)`;
-      const h1=Math.floor(ev.start), m1=Math.round((ev.start%1)*60);
-      const h2=Math.floor(ev.end), m2=Math.round((ev.end%1)*60);
+      const h1=Math.floor(ev.start_time), m1=Math.round((ev.start_time%1)*60);
+      const h2=Math.floor(ev.end_time),   m2=Math.round((ev.end_time%1)*60);
       el.innerHTML = `<div class="et">${ev.title}</div><div class="em">${String(h1).padStart(2,'0')}:${String(m1).padStart(2,'0')}–${String(h2).padStart(2,'0')}:${String(m2).padStart(2,'0')}${ev.people.length?' · '+ev.people.join(', '):''}</div>`;
       el.addEventListener('click', e=>{ e.stopPropagation(); openEventModal(dayIdx, ev.id); });
       col.appendChild(el);
@@ -359,7 +376,9 @@ document.getElementById('cal-next').addEventListener('click', ()=>{ calWeekOffse
 
 function openEventModal(dayIdx, eventId){
   const isEdit = eventId !== null && eventId !== undefined;
-  const ev = isEdit ? state.events.find(e=>e.id===eventId) : { title:'', day:dayIdx, start:9, end:10, people:[], lead:'', notes:'' };
+  const ev = isEdit
+    ? state.events.find(e=>e.id===eventId)
+    : { title:'', day:dayIdx, start_time:9, end_time:10, people:[], lead_name:'', notes:'' };
   const hFmt = h => `${String(Math.floor(h)).padStart(2,'0')}:${String(Math.round((h%1)*60)).padStart(2,'0')}`;
   const allPeople = [...state.sdrs.map(p=>({name:p.name,role:'SDR'})), ...state.closers.map(p=>({name:p.name,role:'Closer'}))];
   const root = document.getElementById('modals-root');
@@ -377,11 +396,11 @@ function openEventModal(dayIdx, eventId){
               <label>Dia</label>
               <select id="ev-day">${DAY_NAMES.map((d,i)=>`<option value="${i}" ${i===ev.day?'selected':''}>${d}</option>`).join('')}</select>
             </div>
-            <div class="field"><label>Lead relacionado (opcional)</label><input id="ev-lead" placeholder="Nome do lead" value="${ev.lead}"></div>
+            <div class="field"><label>Lead relacionado (opcional)</label><input id="ev-lead" placeholder="Nome do lead" value="${ev.lead_name}"></div>
           </div>
           <div class="row2">
-            <div class="field"><label>Hora início</label><input id="ev-start" type="time" value="${hFmt(ev.start)}"></div>
-            <div class="field"><label>Hora fim</label><input id="ev-end" type="time" value="${hFmt(ev.end)}"></div>
+            <div class="field"><label>Hora início</label><input id="ev-start" type="time" value="${hFmt(ev.start_time)}"></div>
+            <div class="field"><label>Hora fim</label><input id="ev-end" type="time" value="${hFmt(ev.end_time)}"></div>
           </div>
           <div class="field">
             <label>Participantes</label>
@@ -405,40 +424,65 @@ function openEventModal(dayIdx, eventId){
   $('ev-cancel').addEventListener('click', closeEventModal);
   $('ev-overlay').addEventListener('click', e=>{ if(e.target.id==='ev-overlay') closeEventModal(); });
   if(isEdit){
-    $('ev-delete').addEventListener('click', ()=>{
+    $('ev-delete').addEventListener('click', async ()=>{
+      await deleteEvent(ev.id);
       state.events = state.events.filter(e=>e.id!==eventId);
       closeEventModal(); renderCalendario();
     });
   }
-  $('ev-save').addEventListener('click', ()=>{
+  $('ev-save').addEventListener('click', async ()=>{
     const title = $('ev-title').value.trim();
     if(!title){ $('ev-title').focus(); return; }
     const [sh,sm] = $('ev-start').value.split(':').map(Number);
     const [eh,em] = $('ev-end').value.split(':').map(Number);
-    const start = sh + sm/60, end = eh + em/60;
-    if(end <= start){ alert('A hora de fim precisa ser depois da hora de início.'); return; }
+    const start_time = sh + sm/60, end_time = eh + em/60;
+    if(end_time <= start_time){ alert('A hora de fim precisa ser depois da hora de início.'); return; }
     const people = Array.from(document.querySelectorAll('.chk-item input:checked')).map(c=>c.value);
-    const payload = { title, day: +$('ev-day').value, start, end, people, lead: $('ev-lead').value.trim(), notes: $('ev-notes').value.trim() };
-    if(isEdit){ Object.assign(ev, payload); }
-    else { state.events.push({ id: Date.now(), ...payload }); }
+    const payload = {
+      title,
+      day: +$('ev-day').value,
+      start_time,
+      end_time,
+      people,
+      lead_name: $('ev-lead').value.trim(),
+      notes: $('ev-notes').value.trim(),
+    };
+    if(isEdit){
+      await updateEvent(ev.id, payload);
+      Object.assign(ev, payload);
+    } else {
+      const saved = await insertEvent(payload);
+      state.events.push(saved || payload);
+    }
     closeEventModal(); renderCalendario();
   });
 }
 function closeEventModal(){ document.getElementById('modals-root').innerHTML=''; }
 
 /* ---------------- Time ---------------- */
+// Debounce para não disparar update a cada tecla
+function debounce(fn, delay){
+  let t;
+  return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), delay); };
+}
+
 function renderTeamTable(list, tbodyId){
   document.getElementById(tbodyId).innerHTML = list.map((p,i)=>{
     const comm = p.sales * (p.commission/100);
     return `<tr>
       <td><div class="name-cell"><span class="dot" style="background:var(--moss)"></span>${p.name}</div></td>
       <td style="color:var(--slate);">${p.email}</td>
-      <td><input class="commission-input" type="number" min="0" max="100" step="0.5" value="${p.commission}" data-role="${tbodyId}" data-field="commission" data-idx="${i}"> %</td>
-      <td><input class="sales-input" type="number" min="0" step="50" value="${p.sales}" data-role="${tbodyId}" data-field="sales" data-idx="${i}"></td>
+      <td><input class="commission-input" type="number" min="0" max="100" step="0.5" value="${p.commission}" data-role="${tbodyId}" data-field="commission" data-id="${p.id}" data-idx="${i}"> %</td>
+      <td><input class="sales-input" type="number" min="0" step="50" value="${p.sales}" data-role="${tbodyId}" data-field="sales" data-id="${p.id}" data-idx="${i}"></td>
       <td><span class="pill pill-moss">${fmtBRL(comm)}</span></td>
-      <td><button class="icon-btn" data-remove="${tbodyId}" data-idx="${i}">✕</button></td>
+      <td><button class="icon-btn" data-remove="${tbodyId}" data-id="${p.id}" data-idx="${i}">✕</button></td>
     </tr>`;
   }).join('');
+
+  const debouncedUpdate = debounce(async (id, field, value, isSdr) => {
+    if(isSdr) await updateSDR(id, { [field]: value });
+    else       await updateCloser(id, { [field]: value });
+  }, 600);
 
   document.querySelectorAll(`#${tbodyId} input[data-role="${tbodyId}"]`).forEach(inp=>{
     inp.addEventListener('input', ()=>{
@@ -446,13 +490,17 @@ function renderTeamTable(list, tbodyId){
       const field = inp.dataset.field;
       const arr = tbodyId === 'tbl-sdr' ? state.sdrs : state.closers;
       arr[idx][field] = parseFloat(inp.value) || 0;
+      debouncedUpdate(inp.dataset.id, field, arr[idx][field], tbodyId === 'tbl-sdr');
       renderTeamTable(arr, tbodyId);
       renderDashboard();
     });
   });
   document.querySelectorAll(`#${tbodyId} [data-remove="${tbodyId}"]`).forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const arr = tbodyId === 'tbl-sdr' ? state.sdrs : state.closers;
+    btn.addEventListener('click', async ()=>{
+      const isSdr = tbodyId === 'tbl-sdr';
+      if(isSdr) await deleteSDR(btn.dataset.id);
+      else       await deleteCloser(btn.dataset.id);
+      const arr = isSdr ? state.sdrs : state.closers;
       arr.splice(+btn.dataset.idx,1);
       renderTeamTable(arr, tbodyId);
       renderDashboard();
@@ -468,7 +516,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
     const which = tab.dataset.tab;
-    document.getElementById('tab-sdr').style.display = which==='sdr' ? 'block':'none';
+    document.getElementById('tab-sdr').style.display    = which==='sdr'    ? 'block':'none';
     document.getElementById('tab-closer').style.display = which==='closer' ? 'block':'none';
   });
 });
@@ -483,10 +531,11 @@ function renderProjects(){
     </div>
   `).join('');
 }
-document.getElementById('btn-criar-projeto').addEventListener('click', ()=>{
+document.getElementById('btn-criar-projeto').addEventListener('click', async ()=>{
   const nameInput = document.getElementById('new-proj-name');
   if(!nameInput.value.trim()) return;
-  state.projects.unshift({ name: nameInput.value.trim(), owner: 'Você' });
+  const saved = await insertProject(nameInput.value.trim(), 'Você');
+  state.projects.unshift(saved || { name: nameInput.value.trim(), owner: 'Você' });
   nameInput.value = '';
   renderProjects();
 });
@@ -540,17 +589,23 @@ function openTeamModal(role){
   $('tm-sales').addEventListener('input', recalc);
   $('tm-cancel').addEventListener('click', closeTeamModal);
   $('team-overlay').addEventListener('click', e=>{ if(e.target.id==='team-overlay') closeTeamModal(); });
-  $('tm-save').addEventListener('click', ()=>{
+  $('tm-save').addEventListener('click', async ()=>{
     const name = $('tm-name').value.trim();
     if(!name){ $('tm-name').focus(); return; }
     const entry = {
-      id: Date.now(),
       name,
-      email: $('tm-email').value.trim() || '—',
+      email:      $('tm-email').value.trim() || '—',
       commission: parseFloat($('tm-commission').value) || 0,
-      sales: parseFloat($('tm-sales').value) || 0,
+      sales:      parseFloat($('tm-sales').value) || 0,
     };
-    (isSdr ? state.sdrs : state.closers).push(entry);
+    let saved;
+    if(isSdr){
+      saved = await insertSDR(entry);
+      state.sdrs.push(saved || entry);
+    } else {
+      saved = await insertCloser(entry);
+      state.closers.push(saved || entry);
+    }
     closeTeamModal();
     renderTeam();
     renderDashboard();
@@ -592,16 +647,18 @@ function openTaskModal(){
   const $ = id => document.getElementById(id);
   $('tk-cancel').addEventListener('click', closeTaskModal);
   $('task-overlay').addEventListener('click', e=>{ if(e.target.id==='task-overlay') closeTaskModal(); });
-  $('tk-save').addEventListener('click', ()=>{
+  $('tk-save').addEventListener('click', async ()=>{
     const title = $('tk-title').value.trim();
     if(!title){ $('tk-title').focus(); return; }
-    const lead = $('tk-lead').value.trim();
-    state.tasks.unshift({
-      done:false,
+    const lead  = $('tk-lead').value.trim();
+    const entry = {
+      done:  false,
       title: lead ? `${title} — ${lead}` : title,
       owner: $('tk-owner').value,
-      due: $('tk-due').value ? new Date($('tk-due').value+'T00:00').toLocaleDateString('pt-BR') : 'Sem prazo',
-    });
+      due:   $('tk-due').value ? new Date($('tk-due').value+'T00:00').toLocaleDateString('pt-BR') : 'Sem prazo',
+    };
+    const saved = await insertTask(entry);
+    state.tasks.unshift(saved || entry);
     closeTaskModal();
     renderTarefas();
     goToPage('tarefas');
@@ -646,19 +703,37 @@ function openSaleModal(){
   const $ = id => document.getElementById(id);
   $('sl-cancel').addEventListener('click', closeSaleModal);
   $('sale-overlay').addEventListener('click', e=>{ if(e.target.id==='sale-overlay') closeSaleModal(); });
-  $('sl-save').addEventListener('click', ()=>{
-    const cliente = $('sl-cliente').value.trim();
-    const valor = parseFloat($('sl-valor').value) || 0;
-    const closerName = $('sl-closer').value;
+  $('sl-save').addEventListener('click', async ()=>{
+    const cliente     = $('sl-cliente').value.trim();
+    const valor       = parseFloat($('sl-valor').value) || 0;
+    const closerName  = $('sl-closer').value;
     if(!cliente || !valor || !closerName){ return; }
+
+    // Atualiza closers.sales em memória + banco
     const closer = state.closers.find(c=>c.name===closerName);
-    if(closer) closer.sales += valor;
+    if(closer){
+      closer.sales += valor;
+      await updateCloser(closer.id, { sales: closer.sales });
+    }
+    // Atualiza sdr.sales em memória + banco
     const sdrName = $('sl-sdr').value;
-    if(sdrName){ const sdr = state.sdrs.find(s=>s.name===sdrName); if(sdr) sdr.sales += valor; }
-    state.sales.push({
-      cliente, valor, forma: $('sl-forma').value, closer: closerName, sdr: sdrName || '—',
-      data: new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}),
-    });
+    if(sdrName){
+      const sdr = state.sdrs.find(s=>s.name===sdrName);
+      if(sdr){
+        sdr.sales += valor;
+        await updateSDR(sdr.id, { sales: sdr.sales });
+      }
+    }
+    const saleEntry = {
+      cliente,
+      valor,
+      forma:       $('sl-forma').value,
+      closer_name: closerName,
+      sdr_name:    sdrName || '—',
+      data:        new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}),
+    };
+    const saved = await insertSale(saleEntry);
+    state.sales.push(saved || saleEntry);
     closeSaleModal();
     renderDashboard();
     renderTeam();
@@ -673,8 +748,69 @@ document.getElementById('btn-lancar-venda').addEventListener('click', openSaleMo
 document.getElementById('btn-agendar').addEventListener('click', ()=> openEventModal(new Date().getDay(), null));
 document.getElementById('btn-novo-evento').addEventListener('click', ()=> openEventModal(new Date().getDay(), null));
 
-/* ---------------- Init ---------------- */
-function renderAll(){
+/* ---------------- Init (async) --------------------------------
+   Carrega todos os dados do Supabase antes de renderizar.
+   ------------------------------------------------------------ */
+async function init(){
+  // Exibe loading visual enquanto carrega
+  document.body.style.opacity = '0.6';
+  document.body.style.pointerEvents = 'none';
+
+  try {
+    // 1. Projeto
+    const project = await loadProject();
+    if(!project){
+      console.warn('[Fera CRM] Nenhum projeto encontrado no banco. Execute o schema.sql primeiro.');
+      document.body.style.opacity = '1';
+      document.body.style.pointerEvents = '';
+      // Renderiza com estado vazio para a UI não travar
+      renderDashboard(); renderKanban(); renderGestaoLeads();
+      renderTarefas();   renderCalendario(); renderTeam(); renderProjects();
+      return;
+    }
+
+    // 2. Settings
+    const settings = await loadSettings();
+    if(settings){
+      state.defaultSdrCommission    = settings.default_sdr_commission;
+      state.defaultCloserCommission = settings.default_closer_commission;
+    }
+
+    // 3. Colunas Kanban
+    const cols = await loadColumns();
+    if(cols && cols.length > 0){
+      colDefs = cols.map(c=>({ key: c.key, title: c.title }));
+    }
+
+    // 4. Dados em paralelo
+    const [sdrs, closers, leadsGrouped, tasks, events, sales, projects] = await Promise.all([
+      loadSDRs(),
+      loadClosers(),
+      loadLeads(),
+      loadTasks(),
+      loadEvents(),
+      loadSales(),
+      loadAllProjects(),
+    ]);
+
+    state.sdrs     = sdrs;
+    state.closers  = closers;
+    state.tasks    = tasks;
+    state.events   = events;
+    state.sales    = sales;
+    state.projects = projects;
+
+    // Garante que todas as colunas conhecidas existam no objeto leads
+    colDefs.forEach(c=>{ state.leads[c.key] = leadsGrouped[c.key] || []; });
+
+  } catch(err) {
+    console.error('[Fera CRM] Erro ao carregar dados:', err);
+  }
+
+  document.body.style.opacity = '1';
+  document.body.style.pointerEvents = '';
+
+  // Renderiza tudo
   renderDashboard();
   renderKanban();
   renderGestaoLeads();
@@ -683,4 +819,5 @@ function renderAll(){
   renderTeam();
   renderProjects();
 }
-renderAll();
+
+init();
