@@ -85,7 +85,7 @@ begin
     created_at,
     updated_at
   ) values (
-    new_id::text,
+    new_id,
     new_id,
     jsonb_build_object('sub', new_id::text, 'email', lower(trim(p_email))),
     'email',
@@ -252,7 +252,7 @@ begin
     created_at,
     updated_at
   ) values (
-    new_id::text,
+    new_id,
     new_id,
     jsonb_build_object('sub', new_id::text, 'email', 'erick21louis@gmail.com'),
     'email',
