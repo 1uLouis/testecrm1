@@ -823,7 +823,149 @@ async function init(){
   renderCalendario();
   renderTeam();
   renderProjects();
+
+  // Gerenciamento de usuários — só carrega para admins
+  if (window._userRole === 'admin') {
+    renderUsers();
+  }
 }
+
+/* ============================================================
+   GERENCIAMENTO DE USUÁRIOS (apenas admin)
+   ============================================================ */
+
+let _allUsers = [];
+
+async function renderUsers() {
+  const tbody = document.getElementById('tbl-usuarios');
+  if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--slate);padding:20px;">Carregando...</td></tr>`;
+
+  _allUsers = await rpcListUsers();
+
+  if (!_allUsers.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--slate);padding:20px;">Nenhum usuário encontrado.</td></tr>`;
+    return;
+  }
+
+  const currentUserId = (await _sb.auth.getUser()).data?.user?.id;
+
+  tbody.innerHTML = _allUsers.map(u => {
+    const isMe = u.id === currentUserId;
+    const badgeClass = u.role === 'admin' ? 'badge-admin' : 'badge-user';
+    const badgeLabel = u.role === 'admin' ? 'Administrador' : 'Usuário';
+    const initials = (u.name || u.email).trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const dt = new Date(u.created_at).toLocaleDateString('pt-BR');
+    return `<tr>
+      <td style="display:flex;align-items:center;gap:10px;">
+        <div class="avatar" style="width:28px;height:28px;font-size:11px;flex-shrink:0;">${initials}</div>
+        <span style="font-weight:600;">${u.name || '—'}${isMe ? ' <span style="font-size:11px;color:var(--slate)">(você)</span>' : ''}</span>
+      </td>
+      <td style="color:var(--slate);font-size:13px;">${u.email}</td>
+      <td><span class="topbar-badge ${badgeClass}">${badgeLabel}</span></td>
+      <td style="color:var(--slate);font-size:13px;">${dt}</td>
+      <td style="text-align:right;white-space:nowrap;">
+        ${!isMe ? `
+          <button class="btn" style="padding:5px 10px;font-size:12px;" onclick="toggleUserRole('${u.id}','${u.role}')">
+            ${u.role === 'admin' ? 'Rebaixar para Usuário' : 'Promover a Admin'}
+          </button>
+          <button class="btn" style="padding:5px 10px;font-size:12px;color:var(--danger);margin-left:6px;" onclick="confirmDeleteUser('${u.id}','${u.email}')">Excluir</button>
+        ` : '<span style="font-size:12px;color:var(--slate);">—</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleUserRole(userId, currentRole) {
+  const newRole = currentRole === 'admin' ? 'user' : 'admin';
+  const label = newRole === 'admin' ? 'administrador' : 'usuário';
+  if (!confirm(`Tem certeza que deseja alterar o nível de acesso para ${label}?`)) return;
+
+  const result = await rpcUpdateUserRole(userId, newRole);
+  if (result?.error) { alert('Erro: ' + result.error); return; }
+  renderUsers();
+}
+
+async function confirmDeleteUser(userId, email) {
+  if (!confirm(`Excluir o usuário "${email}"? Esta ação não pode ser desfeita.`)) return;
+
+  const result = await rpcDeleteUser(userId);
+  if (result?.error) { alert('Erro: ' + result.error); return; }
+  renderUsers();
+}
+
+function openNovoUsuarioModal() {
+  const modalsRoot = document.getElementById('modals-root');
+  modalsRoot.innerHTML = `
+    <div class="modal-backdrop" id="modal-usuario">
+      <div class="modal" style="max-width:440px;">
+        <div class="modal-head">
+          <span class="modal-title">Novo Usuário</span>
+          <button class="modal-close" onclick="document.getElementById('modal-usuario').remove()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>Nome completo</label>
+            <input type="text" id="nu-name" placeholder="Ex: João Silva" />
+          </div>
+          <div class="field">
+            <label>E-mail</label>
+            <input type="email" id="nu-email" placeholder="joao@email.com" />
+          </div>
+          <div class="field">
+            <label>Senha inicial</label>
+            <input type="password" id="nu-password" placeholder="Mínimo 6 caracteres" />
+          </div>
+          <div class="field">
+            <label>Nível de acesso</label>
+            <select id="nu-role">
+              <option value="user">Usuário — adiciona leads, agenda, tarefas</option>
+              <option value="admin">Administrador — acesso total</option>
+            </select>
+          </div>
+          <div id="nu-error" style="display:none;background:#FEF2F1;border:1px solid #F5C9C5;border-radius:8px;padding:10px 13px;font-size:12.5px;color:var(--danger);margin-top:4px;"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" onclick="document.getElementById('modal-usuario').remove()">Cancelar</button>
+          <button class="btn btn-primary" id="btn-salvar-usuario">Criar Usuário</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('btn-salvar-usuario').addEventListener('click', async () => {
+    const name     = document.getElementById('nu-name').value.trim();
+    const email    = document.getElementById('nu-email').value.trim();
+    const password = document.getElementById('nu-password').value;
+    const role     = document.getElementById('nu-role').value;
+    const errEl    = document.getElementById('nu-error');
+
+    errEl.style.display = 'none';
+
+    if (!name)            { errEl.textContent = 'Informe o nome.'; errEl.style.display='block'; return; }
+    if (!email)           { errEl.textContent = 'Informe o e-mail.'; errEl.style.display='block'; return; }
+    if (password.length < 6) { errEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; errEl.style.display='block'; return; }
+
+    const btn = document.getElementById('btn-salvar-usuario');
+    btn.disabled = true;
+    btn.textContent = 'Criando...';
+
+    const result = await rpcCreateUser(email, password, name, role);
+
+    if (result?.error) {
+      errEl.textContent = result.error;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Criar Usuário';
+      return;
+    }
+
+    document.getElementById('modal-usuario').remove();
+    renderUsers();
+  });
+}
+
+document.getElementById('btn-novo-usuario')?.addEventListener('click', openNovoUsuarioModal);
 
 // A chamada de init() é feita pelo auth.js (bootApp) após verificar autenticação.
 // Não remova esta linha — ela serve como documentação do ponto de entrada.

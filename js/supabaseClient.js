@@ -191,3 +191,32 @@ async function updateUserProfile(id, data) {
   return await _q(_sb.from('user_profiles').update(data).eq('id', id));
 }
 
+/* ── GERENCIAMENTO DE USUÁRIOS (via RPC — apenas admin) ───────*/
+
+async function rpcCreateUser(email, password, name, role) {
+  const { data, error } = await _sb.rpc('create_crm_user', {
+    p_email: email, p_password: password, p_name: name, p_role: role,
+  });
+  if (error) return { error: error.message };
+  return data;
+}
+
+async function rpcListUsers() {
+  const { data, error } = await _sb.rpc('list_crm_users');
+  if (error) { console.error('[Supabase]', error.message); return []; }
+  return data || [];
+}
+
+async function rpcUpdateUserRole(userId, role) {
+  const { data, error } = await _sb.rpc('update_crm_user_role', {
+    p_user_id: userId, p_role: role,
+  });
+  if (error) return { error: error.message };
+  return data;
+}
+
+async function rpcDeleteUser(userId) {
+  const { data, error } = await _sb.rpc('delete_crm_user', { p_user_id: userId });
+  if (error) return { error: error.message };
+  return data;
+}

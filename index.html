@@ -283,7 +283,33 @@
             </div>
           </div>
         </div>
+
+        <!-- Gerenciamento de Usuários (apenas admin) -->
+        <div style="margin-top:20px;">
+          <div class="section-head" style="margin-bottom:14px;">
+            <div>
+              <h3 style="font-size:15px;">Gerenciar Usuários</h3>
+              <p class="card-sub" style="margin-bottom:0;">Crie e gerencie as contas de acesso ao FERA CRM</p>
+            </div>
+            <button class="btn btn-primary" id="btn-novo-usuario">＋ Novo Usuário</button>
+          </div>
+          <div class="card" style="padding:0;overflow:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Nível de acesso</th>
+                  <th>Criado em</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tbl-usuarios"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
+
 
       <!-- ================= ASSISTÊNCIA ================= -->
       <section class="page" id="page-assistencia">
