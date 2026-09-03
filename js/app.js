@@ -11,6 +11,11 @@ document.querySelectorAll('.navitem[data-page]').forEach(btn=>{
   btn.addEventListener('click', ()=> goToPage(btn.dataset.page));
 });
 
+/* ---------------- Logout ---------------- */
+document.getElementById('btn-logout')?.addEventListener('click', () => {
+  if (typeof logout === 'function') logout();
+});
+
 /* ---------------- Dashboard ---------------- */
 function renderDashboard(){
   const totalReceita = state.closers.reduce((s,c)=>s+c.sales,0);
@@ -820,4 +825,5 @@ async function init(){
   renderProjects();
 }
 
-init();
+// A chamada de init() é feita pelo auth.js (bootApp) após verificar autenticação.
+// Não remova esta linha — ela serve como documentação do ponto de entrada.

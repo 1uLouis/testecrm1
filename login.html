@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fera CRM — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B18;
+    --paper:#FBF9F5;
+    --panel:#FFFFFF;
+    --line:#E6E1D8;
+    --ember:#D9661F;
+    --ember-dark:#B54F15;
+    --ember-soft:#FBEAE0;
+    --slate:#6B675E;
+    --danger:#B4402A;
+    --shadow: 0 1px 2px rgba(28,27,24,0.04), 0 8px 24px -12px rgba(28,27,24,0.12);
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+  }
+  h1,h2,h3{font-family:'Archivo',system-ui,sans-serif;letter-spacing:-0.01em;}
+
+  .login-wrap{
+    width:100%;
+    max-width:400px;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+    align-items:center;
+  }
+
+  /* Brand */
+  .brand{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+  }
+  .brand-mark{
+    width:52px;height:52px;border-radius:14px;
+    background:linear-gradient(155deg,var(--ember),var(--ember-dark));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Archivo',sans-serif;font-weight:800;color:#fff;font-size:24px;
+    box-shadow: 0 4px 16px rgba(217,102,31,0.35);
+  }
+  .brand-name{
+    font-family:'Archivo',sans-serif;
+    font-weight:800;
+    font-size:22px;
+    color:var(--ink);
+    letter-spacing:-0.02em;
+  }
+  .brand-sub{
+    font-size:13px;
+    color:var(--slate);
+    margin-top:-6px;
+  }
+
+  /* Card */
+  .card{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:32px;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+  }
+  .card-title{
+    font-family:'Archivo',sans-serif;
+    font-size:17px;
+    font-weight:700;
+    text-align:center;
+  }
+  .card-sub{
+    font-size:13px;
+    color:var(--slate);
+    text-align:center;
+    margin-top:-12px;
+  }
+
+  /* Fields */
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .field label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .field input{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 13px;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--ink);
+    background:#fff;
+    transition:border-color .15s;
+    outline:none;
+  }
+  .field input:focus{
+    border-color:var(--ember);
+    box-shadow:0 0 0 3px rgba(217,102,31,0.12);
+  }
+
+  /* Button */
+  .btn-primary{
+    width:100%;
+    padding:12px;
+    background:var(--ember);
+    border:none;
+    border-radius:8px;
+    color:#fff;
+    font-family:inherit;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    transition:background .12s ease, transform .08s ease;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+  }
+  .btn-primary:hover{background:var(--ember-dark);}
+  .btn-primary:active{transform:translateY(1px);}
+  .btn-primary:disabled{opacity:0.6;cursor:not-allowed;}
+
+  /* Error */
+  .error-msg{
+    display:none;
+    background:#FEF2F1;
+    border:1px solid #F5C9C5;
+    border-radius:8px;
+    padding:10px 13px;
+    font-size:12.5px;
+    color:var(--danger);
+    font-weight:500;
+  }
+  .error-msg.visible{display:block;}
+
+  /* Loading spinner inline */
+  .spinner{
+    width:16px;height:16px;
+    border:2px solid rgba(255,255,255,0.4);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin .6s linear infinite;
+    display:none;
+  }
+  .btn-primary.loading .spinner{display:block;}
+  .btn-primary.loading .btn-text{display:none;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .footer-note{
+    font-size:12px;
+    color:var(--slate);
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <!-- Brand -->
+  <div class="brand">
+    <div class="brand-mark">F</div>
+    <div>
+      <div class="brand-name">Fera CRM</div>
+      <div class="brand-sub">Comercial &amp; Vendas</div>
+    </div>
+  </div>
+
+  <!-- Card de login -->
+  <div class="card">
+    <div class="card-title">Entrar na sua conta</div>
+    <div class="card-sub">Acesso restrito — use seu e-mail e senha cadastrados</div>
+
+    <div class="error-msg" id="error-msg"></div>
+
+    <div class="field">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" placeholder="seu@email.com" autocomplete="email" />
+    </div>
+
+    <div class="field">
+      <label for="password">Senha</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+
+    <button class="btn-primary" id="btn-login">
+      <div class="spinner"></div>
+      <span class="btn-text">Entrar</span>
+    </button>
+  </div>
+
+  <div class="footer-note">Fera CRM · Acesso por convite</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL  = 'https://flmdvniysszbqbzsdyxp.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsbWR2bml5c3N6YnFienNkeXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNTUwNDksImV4cCI6MjEwMzkzMTA0OX0.gq2k4okF1OSiIuLAILShP9RLxYWTbytyZS6jjbgvwxU';
+  const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // Se já tem sessão ativa, redireciona direto
+  _sb.auth.getSession().then(({ data }) => {
+    if (data.session) window.location.replace('index.html');
+  });
+
+  const emailInput    = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const btnLogin      = document.getElementById('btn-login');
+  const errorMsg      = document.getElementById('error-msg');
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.add('visible');
+  }
+  function hideError() {
+    errorMsg.classList.remove('visible');
+  }
+  function setLoading(loading) {
+    btnLogin.classList.toggle('loading', loading);
+    btnLogin.disabled = loading;
+  }
+
+  async function doLogin() {
+    hideError();
+    const email    = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email)    { showError('Informe seu e-mail.'); emailInput.focus(); return; }
+    if (!password) { showError('Informe sua senha.'); passwordInput.focus(); return; }
+
+    setLoading(true);
+
+    const { error } = await _sb.auth.signInWithPassword({ email, password });
+
+    setLoading(false);
+
+    if (error) {
+      const msgs = {
+        'Invalid login credentials': 'E-mail ou senha incorretos.',
+        'Email not confirmed':       'Confirme seu e-mail antes de entrar.',
+        'Too many requests':         'Muitas tentativas. Aguarde alguns minutos.',
+      };
+      showError(msgs[error.message] || 'Erro ao entrar. Tente novamente.');
+      return;
+    }
+
+    window.location.replace('index.html');
+  }
+
+  btnLogin.addEventListener('click', doLogin);
+
+  // Enter nos campos também submete
+  [emailInput, passwordInput].forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  });
+</script>
+</body>
+</html>

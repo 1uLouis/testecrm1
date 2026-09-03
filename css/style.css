@@ -133,6 +133,27 @@ nav.navgroup{margin-bottom:14px;}
   font-weight:700;font-size:13px;flex-shrink:0;
 }
 
+/* Topbar user block (auth) */
+.topbar-user{
+  display:flex;align-items:center;gap:8px;
+  padding-left:4px;
+  border-left:1px solid var(--line);
+  margin-left:4px;
+}
+.topbar-badge{
+  font-size:11px;font-weight:700;
+  padding:3px 8px;border-radius:20px;
+  letter-spacing:.03em;text-transform:uppercase;
+}
+.badge-admin{background:var(--ember-soft);color:var(--ember-dark);}
+.badge-user{background:var(--moss-soft);color:var(--moss);}
+.btn-logout{
+  color:var(--slate);
+  font-size:12.5px;
+  padding:7px 10px;
+}
+.btn-logout:hover{color:var(--danger);box-shadow:none;}
+
 .content{padding:26px;flex:1;overflow:auto;}
 .page{display:none;animation:fade .15s ease;}
 .page.active{display:block;}

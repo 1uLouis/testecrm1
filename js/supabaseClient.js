@@ -177,3 +177,17 @@ async function insertSale(data) {
   const rows = await _q(_sb.from('sales').insert({ project_id: _projectId, ...data }).select());
   return rows ? rows[0] : null;
 }
+
+/* ── USER PROFILES ───────────────────────────────────────────
+   Usado pelo auth.js para controle de acesso baseado em roles */
+
+async function getUserProfile() {
+  const { data, error } = await _sb.from('user_profiles').select('*').limit(1).maybeSingle();
+  if (error) { console.error('[Supabase]', error.message); return null; }
+  return data;
+}
+
+async function updateUserProfile(id, data) {
+  return await _q(_sb.from('user_profiles').update(data).eq('id', id));
+}
+
