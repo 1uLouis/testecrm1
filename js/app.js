@@ -1,5 +1,10 @@
 /* ---------------- Navigation ---------------- */
+const _adminOnlyPages = ['time', 'projetos', 'administracao'];
+
 function goToPage(page){
+  // Bloqueia acesso a páginas admin para usuários comuns
+  if (_adminOnlyPages.includes(page) && window._userRole !== 'admin') return;
+
   state.page = page;
   document.querySelectorAll('.navitem[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
