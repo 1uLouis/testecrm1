@@ -1,6 +1,6 @@
 /* =============================================================
    FERA CRM — Auth & Role-Based Access Control
-   Deve ser carregado ANTES de app.js no index.html
+   Deve ser carregado APÓS app.js no index.html
 
    Fluxo:
    1. checkSession() → se sem sessão, redireciona para login.html
@@ -11,76 +11,101 @@
 
 /* ── Controle de sessão ────────────────────────────────────── */
 
-/**
- * Verifica se o usuário está autenticado.
- * Se não estiver, redireciona para login.html.
- * Retorna o objeto de sessão se autenticado.
- */
 async function checkSession() {
   const { data: { session } } = await _sb.auth.getSession();
   if (!session) {
     window.location.replace('login.html');
-    // Retorna uma Promise que nunca resolve para interromper a execução
-    return new Promise(() => {});
+    return new Promise(() => {}); // interrompe execução
   }
   return session;
 }
 
 /* ── Perfil de usuário ─────────────────────────────────────── */
 
-/**
- * Carrega o perfil do usuário autenticado da tabela user_profiles.
- * Retorna { id, role, name } ou { role: 'user' } como fallback.
- */
 async function loadUserProfile() {
-  const { data, error } = await _sb.from('user_profiles').select('*').limit(1).maybeSingle();
-  if (error) {
-    console.warn('[Auth] Erro ao carregar perfil:', error.message);
+  // Obtém o usuário atual da sessão
+  const { data: { user }, error: userError } = await _sb.auth.getUser();
+
+  if (userError || !user) {
+    console.warn('[Auth] Sem usuário na sessão:', userError?.message);
     return { role: 'user', name: 'Usuário' };
   }
-  return data || { role: 'user', name: 'Usuário' };
+
+  // Busca o perfil filtrando explicitamente pelo ID do usuário logado
+  const { data, error } = await _sb
+    .from('user_profiles')
+    .select('id, role, name')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[Auth] Erro ao carregar perfil:', error.message);
+    // Fallback: tenta criar o perfil se não existir
+    const { data: inserted } = await _sb
+      .from('user_profiles')
+      .insert({ id: user.id, role: 'user', name: user.email })
+      .select()
+      .maybeSingle();
+    return inserted || { role: 'user', name: user.email };
+  }
+
+  if (!data) {
+    // Perfil não existe ainda — insere como 'user'
+    const { data: inserted } = await _sb
+      .from('user_profiles')
+      .insert({ id: user.id, role: 'user', name: user.email })
+      .select()
+      .maybeSingle();
+    return inserted || { role: 'user', name: user.email };
+  }
+
+  console.log('[Auth] Perfil carregado:', data.email, '→ role:', data.role);
+  return data;
 }
 
 /* ── Aplica restrições de UI por role ─────────────────────── */
 
-/**
- * Exibe o nome e o badge de role na topbar.
- * Oculta itens de navegação e botões restritos para 'user'.
- *
- * Elementos controlados:
- *   - #nav-time          → item da sidebar "Time"
- *   - #nav-projetos      → item da sidebar "Projetos"
- *   - #nav-administracao → item da sidebar "Administração"
- *   - #btn-nova-coluna   → botão "Nova Coluna" no quadro de leads
- */
 function applyRoleUI(role, name) {
-  // Atualiza o avatar / nome na topbar
+  // Atualiza avatar e badge na topbar
   const avatarEl = document.getElementById('topbar-user-name');
   const badgeEl  = document.getElementById('topbar-user-badge');
+
   if (avatarEl) {
-    const initials = name
-      ? name.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-      : '?';
+    const initials = (name || '?')
+      .trim()
+      .split(' ')
+      .map(w => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
     avatarEl.textContent = initials;
-    avatarEl.title = name;
+    avatarEl.title = name || '';
   }
+
   if (badgeEl) {
     badgeEl.textContent = role === 'admin' ? 'Admin' : 'Usuário';
     badgeEl.className = 'topbar-badge ' + (role === 'admin' ? 'badge-admin' : 'badge-user');
   }
 
-  // Usuários comuns não vêem funcionalidades de administrador
+  // Guarda o role globalmente para uso em renderizações dinâmicas (ex: renderKanban)
+  window._userRole = role;
+
+  // Elementos estáticos no HTML — ocultar para 'user'
   if (role !== 'admin') {
-    const restricted = [
-      '#nav-time',
-      '#nav-projetos',
-      '#nav-administracao',
-      '#btn-nova-coluna',
-    ];
-    restricted.forEach(sel => {
+    ['#nav-time', '#nav-projetos', '#nav-administracao'].forEach(sel => {
       const el = document.querySelector(sel);
       if (el) el.style.display = 'none';
     });
+
+    // Bloqueia navegação via goToPage para páginas restritas
+    const _originalGoToPage = window.goToPage;
+    if (typeof _originalGoToPage === 'function') {
+      window.goToPage = function(page) {
+        const adminOnly = ['time', 'projetos', 'administracao'];
+        if (adminOnly.includes(page)) return; // bloqueia silenciosamente
+        _originalGoToPage(page);
+      };
+    }
   }
 }
 
@@ -92,26 +117,36 @@ async function logout() {
 }
 
 /* ── Inicialização protegida ───────────────────────────────── */
-// Sobrescreve a chamada direta de init() que existia no app.js.
-// Agora o fluxo é: checkSession → loadUserProfile → applyRoleUI → init()
+
 async function bootApp() {
-  // 1. Garante sessão ativa (redireciona para login se não tiver)
+  // 1. Verifica sessão
   await checkSession();
 
-  // 2. Carrega o perfil e aplica restrições de UI
+  // 2. Carrega perfil com role real
   const profile = await loadUserProfile();
+
+  // 3. Aplica restrições de UI baseadas no role
   applyRoleUI(profile.role, profile.name);
 
-  // 3. Armazena role no state para eventuais verificações no app.js
-  window._userRole = profile.role;
-
-  // 4. Inicializa o CRM normalmente
+  // 4. Inicializa o CRM
   if (typeof init === 'function') {
     await init();
   }
+
+  // 5. Após init(), se for usuário, oculta o btn-nova-coluna
+  //    (esse botão é criado dinamicamente pelo renderKanban)
+  if (profile.role !== 'admin') {
+    const btnNovaColuna = document.getElementById('btn-nova-coluna');
+    if (btnNovaColuna) btnNovaColuna.style.display = 'none';
+  }
+
+  // 6. Se admin, carrega lista de usuários na página de administração
+  if (profile.role === 'admin' && typeof renderUsers === 'function') {
+    renderUsers();
+  }
 }
 
-// Aguarda o DOM estar pronto antes de iniciar
+// Inicia após o DOM estar pronto
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootApp);
 } else {

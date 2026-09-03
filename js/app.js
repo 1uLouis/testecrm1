@@ -74,6 +74,7 @@ function renderDashboard(){
 let dragCtx = null;
 function renderKanban(){
   const board = document.getElementById('kanban-board');
+  const isAdmin = window._userRole === 'admin';
   board.innerHTML = colDefs.map(col=>`
     <div class="kcol" data-col="${col.key}">
       <div class="kcol-head"><span class="t">${col.title}</span><span class="n">${state.leads[col.key]?.length || 0}</span></div>
@@ -81,6 +82,12 @@ function renderKanban(){
       <button class="kaddbtn" data-addcol="${col.key}">＋ Novo lead</button>
     </div>
   `).join('');
+
+  // Oculta o btn-nova-coluna do header do quadro se não for admin
+  if (!isAdmin) {
+    const btnNovaColuna = document.getElementById('btn-nova-coluna');
+    if (btnNovaColuna) btnNovaColuna.style.display = 'none';
+  }
 
   colDefs.forEach(col=>{
     const colEl = board.querySelector(`.kcol[data-col="${col.key}"]`);
@@ -823,11 +830,7 @@ async function init(){
   renderCalendario();
   renderTeam();
   renderProjects();
-
-  // Gerenciamento de usuários — só carrega para admins
-  if (window._userRole === 'admin') {
-    renderUsers();
-  }
+  // renderUsers() é chamado pelo auth.js após init(), somente para admins
 }
 
 /* ============================================================
