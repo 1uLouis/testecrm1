@@ -901,10 +901,10 @@ async function init(){
       colDefs = cols.map(c=>({ key: c.key, title: c.title }));
     }
 
-    // Garante que won e lost sempre existam sem emojis e sempre no final
+    // Garante que won e lost sempre existam e fiquem no final
     const specialCols = [
-      { key: 'won',  title: 'Venda Ganha' },
-      { key: 'lost', title: 'Venda Perdida' },
+      { key: 'won',  title: 'Venda Ganha (won)' },
+      { key: 'lost', title: 'Venda Perdida (lost)' },
     ];
 
     // Remove won/lost de onde estiverem para recolocá-los no final
