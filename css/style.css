@@ -313,13 +313,8 @@ tr:last-child td{border-bottom:none;}
 ::-webkit-scrollbar{width:10px;height:10px;}
 ::-webkit-scrollbar-thumb{background:#DAD3C4;border-radius:6px;}
 
-/* ===== Kanban: colunas especiais won / lost ===== */
-.kcol-won{background:#D4EDDA;border:2px solid #28A745;}
-.kcol-lost{background:#F8D7DA;border:2px solid #DC3545;}
-.kcol-won .kcol-head .t{color:#155724;}
-.kcol-lost .kcol-head .t{color:#721C24;}
-.kcol-won  .kcard{border-left:3px solid #28A745;}
-.kcol-lost .kcard{border-left:3px solid #DC3545;opacity:.85;}
+/* ===== Kanban: colunas won / lost — mesma aparência das colunas normais ===== */
+/* Sem estilo especial — herdam tudo do .kcol */
 
 /* ===== Mobile menu button ===== */
 .menu-toggle{

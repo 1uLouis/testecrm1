@@ -126,12 +126,12 @@ function renderKanban(){
   board.innerHTML = colDefs.map(col=>{
     const isWon  = col.key === 'won';
     const isLost = col.key === 'lost';
-    const colClass = isWon ? 'kcol kcol-won' : isLost ? 'kcol kcol-lost' : 'kcol';
+    // won e lost não têm botão de adicionar lead, mas têm mesma aparência visual
     const addBtn = (!isWon && !isLost)
       ? `<button class="kaddbtn" data-addcol="${col.key}">＋ Novo lead</button>`
       : '';
     return `
-    <div class="${colClass}" data-col="${col.key}">
+    <div class="kcol" data-col="${col.key}">
       <div class="kcol-head"><span class="t">${col.title}</span><span class="n">${state.leads[col.key]?.length || 0}</span></div>
       <div class="kcards"></div>
       ${addBtn}
@@ -220,11 +220,14 @@ function openAddColumnModal(){
     if(!title){ $('col-name').focus(); return; }
     
     const key = title.toLowerCase().replace(/[^a-z0-9]/g, '') + Date.now().toString().slice(-4);
-    const position = colDefs.length;
-    colDefs.push({ key, title });
+
+    // Insere ANTES das colunas won/lost (que ficam sempre no final)
+    const wonIdx = colDefs.findIndex(c => c.key === 'won');
+    const insertAt = wonIdx >= 0 ? wonIdx : colDefs.length;
+    colDefs.splice(insertAt, 0, { key, title });
     state.leads[key] = [];
-    // Persiste no banco
-    await insertColumn(key, title, position);
+    // Persiste no banco com a posição correta
+    await insertColumn(key, title, insertAt);
     
     closeAddColumnModal();
     renderKanban();
@@ -898,17 +901,22 @@ async function init(){
       colDefs = cols.map(c=>({ key: c.key, title: c.title }));
     }
 
-    // Garante que won e lost sempre existam no colDefs (ao final, fixas)
+    // Garante que won e lost sempre existam sem emojis e sempre no final
     const specialCols = [
-      { key: 'won',  title: '🏆 Venda Ganha' },
-      { key: 'lost', title: '❌ Venda Perdida' },
+      { key: 'won',  title: 'Venda Ganha' },
+      { key: 'lost', title: 'Venda Perdida' },
     ];
+
+    // Remove won/lost de onde estiverem para recolocá-los no final
+    colDefs = colDefs.filter(c => c.key !== 'won' && c.key !== 'lost');
+
     for (const sc of specialCols) {
-      if (!colDefs.find(c => c.key === sc.key)) {
-        colDefs.push(sc);
-        // Persiste no banco para que apareça na próxima carga
-        await insertColumn(sc.key, sc.title, colDefs.length - 1);
+      const existing = cols.find(c => c.key === sc.key);
+      if (!existing) {
+        // Persiste no banco se não existir ainda
+        await insertColumn(sc.key, sc.title, colDefs.length);
       }
+      colDefs.push(sc); // sempre no final
     }
 
     // 4. Dados em paralelo
