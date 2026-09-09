@@ -26,16 +26,52 @@ function renderDashboard(){
   const totalReceita = state.closers.reduce((s,c)=>s+c.sales,0);
   const numVendas = state.sales.length || 1;
   const ticketMedio = totalReceita>0 ? totalReceita/numVendas : 0;
-  const caixaLiquido = totalReceita*0.965;
   const totalLeads = Object.values(state.leads).reduce((s,arr)=>s+arr.length,0);
   const conv = totalLeads>0 ? Math.round((numVendas/(totalLeads+numVendas))*100) : 0;
+
+  // Cálculo do caixa líquido: por cada venda lançada,
+  // desconta comissão do closer + comissão do SDR + taxa da forma de pagamento
+  const taxaMap = { 'Cartão': state.taxaCartao, 'Boleto': state.taxaBoleto, 'Pix': state.taxaPix };
+  let totalComissaoCloser = 0;
+  let totalComissaoSdr = 0;
+  let totalTaxaPagamento = 0;
+
+  state.sales.forEach(venda => {
+    const valor = venda.valor || 0;
+
+    // Comissão do closer dessa venda
+    const closer = state.closers.find(c => c.name === venda.closer_name);
+    const percCloser = closer ? (closer.commission || 0) : 0;
+    totalComissaoCloser += valor * (percCloser / 100);
+
+    // Comissão do SDR dessa venda
+    const sdr = state.sdrs.find(s => s.name === venda.sdr_name);
+    const percSdr = sdr ? (sdr.commission || 0) : 0;
+    totalComissaoSdr += valor * (percSdr / 100);
+
+    // Taxa da forma de pagamento dessa venda
+    const taxa = taxaMap[venda.forma] ?? state.taxaCartao;
+    totalTaxaPagamento += valor * (taxa / 100);
+  });
+
+  const totalDescontos = totalComissaoCloser + totalComissaoSdr + totalTaxaPagamento;
+  const caixaLiquido = Math.max(0, totalReceita - totalDescontos);
 
   document.getElementById('m-receita').textContent = fmtBRL(totalReceita);
   document.getElementById('m-receita-hint').textContent = `${state.sales.length} venda${state.sales.length===1?'':'s'} no período`;
   document.getElementById('m-ticket').textContent = fmtBRL(ticketMedio);
   document.getElementById('m-caixa').textContent = fmtBRL(caixaLiquido);
+  const caixaHintEl = document.getElementById('m-caixa-hint');
+  if(caixaHintEl){
+    if(state.sales.length > 0){
+      caixaHintEl.textContent = `Comissões: ${fmtBRL(totalComissaoCloser + totalComissaoSdr)} · Taxas: ${fmtBRL(totalTaxaPagamento)}`;
+    } else {
+      caixaHintEl.textContent = 'Após comissões e taxas de pagamento';
+    }
+  }
   document.getElementById('m-leads').textContent = totalLeads;
   document.getElementById('m-conv').textContent = conv + '%';
+
 
   const recentes = [...state.sales].slice(-5).reverse();
   document.getElementById('vendas-recentes').innerHTML = recentes.length ? recentes.map(v=>`
@@ -765,6 +801,52 @@ document.getElementById('btn-lancar-venda').addEventListener('click', openSaleMo
 document.getElementById('btn-agendar').addEventListener('click', ()=> openEventModal(new Date().getDay(), null));
 document.getElementById('btn-novo-evento').addEventListener('click', ()=> openEventModal(new Date().getDay(), null));
 
+/* ---------------- Administração: Taxas e Comissões Padrão ---------------- */
+function syncAdminFields(){
+  const taxCartao = document.getElementById('adm-taxa-cartao');
+  const taxBoleto = document.getElementById('adm-taxa-boleto');
+  const taxPix    = document.getElementById('adm-taxa-pix');
+  const commSdr   = document.getElementById('adm-comm-sdr');
+  const commClos  = document.getElementById('adm-comm-closer');
+  if(taxCartao) taxCartao.value = state.taxaCartao;
+  if(taxBoleto) taxBoleto.value = state.taxaBoleto;
+  if(taxPix)    taxPix.value    = state.taxaPix;
+  if(commSdr)   commSdr.value   = state.defaultSdrCommission;
+  if(commClos)  commClos.value  = state.defaultCloserCommission;
+}
+
+// Sincroniza campos ao entrar na página de administração
+document.querySelectorAll('.navitem[data-page]').forEach(btn=>{
+  if(btn.dataset.page === 'administracao'){
+    btn.addEventListener('click', syncAdminFields);
+  }
+});
+
+// Salvar Taxas de Pagamento
+document.getElementById('btn-salvar-taxas')?.addEventListener('click', async ()=>{
+  const cartao = parseFloat(document.getElementById('adm-taxa-cartao')?.value) || 0;
+  const boleto = parseFloat(document.getElementById('adm-taxa-boleto')?.value) || 0;
+  const pix    = parseFloat(document.getElementById('adm-taxa-pix')?.value)    || 0;
+  state.taxaCartao = cartao;
+  state.taxaBoleto = boleto;
+  state.taxaPix    = pix;
+  await saveSettings(state.defaultSdrCommission, state.defaultCloserCommission, cartao, boleto, pix);
+  renderDashboard();
+  const btn = document.getElementById('btn-salvar-taxas');
+  if(btn){ const orig = btn.textContent; btn.textContent = '✓ Salvo!'; setTimeout(()=>btn.textContent=orig, 1500); }
+});
+
+// Salvar Comissões Padrão
+document.getElementById('btn-salvar-comissoes')?.addEventListener('click', async ()=>{
+  const sdr    = parseFloat(document.getElementById('adm-comm-sdr')?.value)    || 0;
+  const closer = parseFloat(document.getElementById('adm-comm-closer')?.value) || 0;
+  state.defaultSdrCommission    = sdr;
+  state.defaultCloserCommission = closer;
+  await saveSettings(sdr, closer, state.taxaCartao, state.taxaBoleto, state.taxaPix);
+  const btn = document.getElementById('btn-salvar-comissoes');
+  if(btn){ const orig = btn.textContent; btn.textContent = '✓ Salvo!'; setTimeout(()=>btn.textContent=orig, 1500); }
+});
+
 /* ---------------- Init (async) --------------------------------
    Carrega todos os dados do Supabase antes de renderizar.
    ------------------------------------------------------------ */
@@ -791,6 +873,9 @@ async function init(){
     if(settings){
       state.defaultSdrCommission    = settings.default_sdr_commission;
       state.defaultCloserCommission = settings.default_closer_commission;
+      state.taxaCartao = settings.taxa_cartao ?? 3.50;
+      state.taxaBoleto = settings.taxa_boleto ?? 1.95;
+      state.taxaPix    = settings.taxa_pix    ?? 0.99;
     }
 
     // 3. Colunas Kanban

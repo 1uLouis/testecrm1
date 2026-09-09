@@ -111,7 +111,7 @@
         <div class="grid grid-5" style="margin-bottom:18px;">
           <div class="card metric"><div class="label">Receita Total</div><div class="value" id="m-receita">R$ 0</div><div class="hint" id="m-receita-hint">0 vendas no período</div></div>
           <div class="card metric"><div class="label">Ticket Médio</div><div class="value" id="m-ticket">R$ 0</div><div class="hint">Por venda fechada</div></div>
-          <div class="card metric"><div class="label">Caixa Gerado (Líq.)</div><div class="value" id="m-caixa">R$ 0</div><div class="hint">Após taxas de pagamento</div></div>
+          <div class="card metric"><div class="label">Caixa Gerado (Líq.)</div><div class="value" id="m-caixa">R$ 0</div><div class="hint" id="m-caixa-hint">Após comissões e taxas de pagamento</div></div>
           <div class="card metric"><div class="label">Leads no Período</div><div class="value" id="m-leads">0</div><div class="hint">Leads registrados</div></div>
           <div class="card metric"><div class="label">Taxa de Conversão</div><div class="value" id="m-conv">0%</div><div class="hint">Leads que viraram venda</div></div>
         </div>
@@ -260,26 +260,26 @@
         <div class="grid grid-2">
           <div class="card">
             <div class="card-title">Formas de Pagamento</div>
-            <div class="card-sub">Taxas aplicadas sobre cada forma de recebimento</div>
-            <table>
-              <thead><tr><th>Nome</th><th>Taxa</th></tr></thead>
-              <tbody>
-                <tr><td>Cartão</td><td>3,50%</td></tr>
-                <tr><td>Boleto</td><td>1,95%</td></tr>
-                <tr><td>Pix</td><td>0,99%</td></tr>
-              </tbody>
-            </table>
+            <div class="card-sub">Taxas aplicadas sobre cada forma de recebimento — afetam diretamente o caixa líquido</div>
+            <div class="modal-body" style="padding:0;margin-top:12px;">
+              <div class="row2">
+                <div class="field"><label>Taxa Cartão (%)</label><input type="number" id="adm-taxa-cartao" min="0" max="100" step="0.01" value="3.50"></div>
+                <div class="field"><label>Taxa Boleto (%)</label><input type="number" id="adm-taxa-boleto" min="0" max="100" step="0.01" value="1.95"></div>
+              </div>
+              <div class="field"><label>Taxa Pix (%)</label><input type="number" id="adm-taxa-pix" min="0" max="100" step="0.01" value="0.99"></div>
+              <button class="btn btn-primary" id="btn-salvar-taxas" style="align-self:flex-start;margin-top:4px;">Salvar Taxas</button>
+            </div>
           </div>
           <div class="card">
             <div class="card-title">Comissões Padrão da Equipe</div>
             <div class="card-sub">Usadas quando uma pessoa não tem um percentual individual definido</div>
             <div class="modal-body" style="padding:0;">
               <div class="row2">
-                <div class="field"><label>Comissão SDR padrão (%)</label><input type="number" value="3"></div>
-                <div class="field"><label>Comissão Closer padrão (%)</label><input type="number" value="8"></div>
+                <div class="field"><label>Comissão SDR padrão (%)</label><input type="number" id="adm-comm-sdr" value="3"></div>
+                <div class="field"><label>Comissão Closer padrão (%)</label><input type="number" id="adm-comm-closer" value="8"></div>
               </div>
               <div class="field helper">Ao adicionar um SDR ou Closer sem definir um valor próprio, esse percentual padrão é usado no cálculo.</div>
-              <button class="btn btn-primary" style="align-self:flex-start;">Salvar Comissões Padrão</button>
+              <button class="btn btn-primary" id="btn-salvar-comissoes" style="align-self:flex-start;">Salvar Comissões Padrão</button>
             </div>
           </div>
         </div>

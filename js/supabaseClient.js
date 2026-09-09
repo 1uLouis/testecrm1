@@ -40,22 +40,28 @@ async function insertProject(name, owner = 'Você') {
 /* ── SETTINGS ────────────────────────────────────────────────*/
 async function loadSettings() {
   const rows = await _q(_sb.from('settings').select('*').eq('project_id', _projectId).limit(1));
-  return rows ? rows[0] : { default_sdr_commission: 3, default_closer_commission: 8 };
+  return rows ? rows[0] : {
+    default_sdr_commission: 3,
+    default_closer_commission: 8,
+    taxa_cartao: 3.50,
+    taxa_boleto: 1.95,
+    taxa_pix: 0.99,
+  };
 }
 
-async function saveSettings(defaultSdrCommission, defaultCloserCommission) {
+async function saveSettings(defaultSdrCommission, defaultCloserCommission, taxaCartao, taxaBoleto, taxaPix) {
   const existing = await _q(_sb.from('settings').select('id').eq('project_id', _projectId).limit(1));
+  const payload = {
+    default_sdr_commission: defaultSdrCommission,
+    default_closer_commission: defaultCloserCommission,
+    taxa_cartao: taxaCartao,
+    taxa_boleto: taxaBoleto,
+    taxa_pix: taxaPix,
+  };
   if (existing && existing.length > 0) {
-    return await _q(_sb.from('settings').update({
-      default_sdr_commission: defaultSdrCommission,
-      default_closer_commission: defaultCloserCommission,
-    }).eq('project_id', _projectId));
+    return await _q(_sb.from('settings').update(payload).eq('project_id', _projectId));
   } else {
-    return await _q(_sb.from('settings').insert({
-      project_id: _projectId,
-      default_sdr_commission: defaultSdrCommission,
-      default_closer_commission: defaultCloserCommission,
-    }));
+    return await _q(_sb.from('settings').insert({ project_id: _projectId, ...payload }));
   }
 }
 

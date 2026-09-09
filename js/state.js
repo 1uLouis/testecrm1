@@ -10,6 +10,9 @@ const state = {
   teamTab: 'sdr',
   defaultSdrCommission: 3,
   defaultCloserCommission: 8,
+  taxaCartao: 3.50,
+  taxaBoleto: 1.95,
+  taxaPix: 0.99,
   sdrs: [],
   closers: [],
   leads: {
