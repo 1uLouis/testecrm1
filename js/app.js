@@ -26,8 +26,15 @@ function renderDashboard(){
   const totalReceita = state.closers.reduce((s,c)=>s+c.sales,0);
   const numVendas = state.sales.length || 1;
   const ticketMedio = totalReceita>0 ? totalReceita/numVendas : 0;
+
+  // Total de leads = todos os leads no kanban (independente de coluna)
   const totalLeads = Object.values(state.leads).reduce((s,arr)=>s+arr.length,0);
-  const conv = totalLeads>0 ? Math.round((numVendas/(totalLeads+numVendas))*100) : 0;
+
+  // Taxa de conversão: won / (won + lost). Se nenhum dos dois, exibe 0%
+  const wonCount  = (state.leads['won']  || []).length;
+  const lostCount = (state.leads['lost'] || []).length;
+  const convBase  = wonCount + lostCount;
+  const conv = convBase > 0 ? Math.round((wonCount / convBase) * 100) : 0;
 
   // Cálculo do caixa líquido: por cada venda lançada,
   // desconta comissão do closer + comissão do SDR + taxa da forma de pagamento
@@ -116,13 +123,20 @@ let dragCtx = null;
 function renderKanban(){
   const board = document.getElementById('kanban-board');
   const isAdmin = window._userRole === 'admin';
-  board.innerHTML = colDefs.map(col=>`
-    <div class="kcol" data-col="${col.key}">
+  board.innerHTML = colDefs.map(col=>{
+    const isWon  = col.key === 'won';
+    const isLost = col.key === 'lost';
+    const colClass = isWon ? 'kcol kcol-won' : isLost ? 'kcol kcol-lost' : 'kcol';
+    const addBtn = (!isWon && !isLost)
+      ? `<button class="kaddbtn" data-addcol="${col.key}">＋ Novo lead</button>`
+      : '';
+    return `
+    <div class="${colClass}" data-col="${col.key}">
       <div class="kcol-head"><span class="t">${col.title}</span><span class="n">${state.leads[col.key]?.length || 0}</span></div>
       <div class="kcards"></div>
-      <button class="kaddbtn" data-addcol="${col.key}">＋ Novo lead</button>
+      ${addBtn}
     </div>
-  `).join('');
+  `}).join('');
 
   // Oculta o btn-nova-coluna do header do quadro se não for admin
   if (!isAdmin) {
@@ -884,6 +898,19 @@ async function init(){
       colDefs = cols.map(c=>({ key: c.key, title: c.title }));
     }
 
+    // Garante que won e lost sempre existam no colDefs (ao final, fixas)
+    const specialCols = [
+      { key: 'won',  title: '🏆 Venda Ganha' },
+      { key: 'lost', title: '❌ Venda Perdida' },
+    ];
+    for (const sc of specialCols) {
+      if (!colDefs.find(c => c.key === sc.key)) {
+        colDefs.push(sc);
+        // Persiste no banco para que apareça na próxima carga
+        await insertColumn(sc.key, sc.title, colDefs.length - 1);
+      }
+    }
+
     // 4. Dados em paralelo
     const [sdrs, closers, leadsGrouped, tasks, events, sales, projects] = await Promise.all([
       loadSDRs(),
@@ -1059,6 +1086,35 @@ function openNovoUsuarioModal() {
 }
 
 document.getElementById('btn-novo-usuario')?.addEventListener('click', openNovoUsuarioModal);
+
+/* ---------------- Menu Mobile (hambúrguer) ---------------- */
+(function setupMobileMenu(){
+  const toggle   = document.getElementById('menu-toggle');
+  const sidebar  = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if(!toggle || !sidebar || !backdrop) return;
+
+  function openMenu(){
+    sidebar.classList.add('open');
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMenu(){
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  toggle.addEventListener('click', ()=>{
+    sidebar.classList.contains('open') ? closeMenu() : openMenu();
+  });
+  backdrop.addEventListener('click', closeMenu);
+
+  // Fecha o menu ao navegar para uma página
+  document.querySelectorAll('.navitem[data-page]').forEach(btn=>{
+    btn.addEventListener('click', closeMenu);
+  });
+})();
 
 // A chamada de init() é feita pelo auth.js (bootApp) após verificar autenticação.
 // Não remova esta linha — ela serve como documentação do ponto de entrada.

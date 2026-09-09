@@ -11,6 +11,13 @@
 <body>
 
 <div class="app">
+  <!-- Botão hambúrguer (mobile) -->
+  <button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">
+    <span></span><span></span><span></span>
+  </button>
+  <!-- Backdrop para fechar o menu ao clicar fora (mobile) -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
@@ -112,8 +119,8 @@
           <div class="card metric"><div class="label">Receita Total</div><div class="value" id="m-receita">R$ 0</div><div class="hint" id="m-receita-hint">0 vendas no período</div></div>
           <div class="card metric"><div class="label">Ticket Médio</div><div class="value" id="m-ticket">R$ 0</div><div class="hint">Por venda fechada</div></div>
           <div class="card metric"><div class="label">Caixa Gerado (Líq.)</div><div class="value" id="m-caixa">R$ 0</div><div class="hint" id="m-caixa-hint">Após comissões e taxas de pagamento</div></div>
-          <div class="card metric"><div class="label">Leads no Período</div><div class="value" id="m-leads">0</div><div class="hint">Leads registrados</div></div>
-          <div class="card metric"><div class="label">Taxa de Conversão</div><div class="value" id="m-conv">0%</div><div class="hint">Leads que viraram venda</div></div>
+          <div class="card metric"><div class="label">Leads no Período</div><div class="value" id="m-leads">0</div><div class="hint">Total de leads no funil</div></div>
+          <div class="card metric"><div class="label">Taxa de Conversão</div><div class="value" id="m-conv">0%</div><div class="hint">Ganhos ÷ (Ganhos + Perdidos)</div></div>
         </div>
 
         <div class="grid grid-2" style="margin-bottom:18px;">

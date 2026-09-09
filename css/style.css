@@ -312,3 +312,99 @@ tr:last-child td{border-bottom:none;}
 
 ::-webkit-scrollbar{width:10px;height:10px;}
 ::-webkit-scrollbar-thumb{background:#DAD3C4;border-radius:6px;}
+
+/* ===== Kanban: colunas especiais won / lost ===== */
+.kcol-won{background:#D4EDDA;border:2px solid #28A745;}
+.kcol-lost{background:#F8D7DA;border:2px solid #DC3545;}
+.kcol-won .kcol-head .t{color:#155724;}
+.kcol-lost .kcol-head .t{color:#721C24;}
+.kcol-won  .kcard{border-left:3px solid #28A745;}
+.kcol-lost .kcard{border-left:3px solid #DC3545;opacity:.85;}
+
+/* ===== Mobile menu button ===== */
+.menu-toggle{
+  display:none;
+  position:fixed;top:14px;left:14px;z-index:200;
+  background:var(--ink);border:none;border-radius:8px;
+  width:42px;height:42px;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;
+}
+.menu-toggle span{display:block;width:20px;height:2px;background:#fff;border-radius:2px;margin:4px auto;transition:all .2s;}
+
+/* ===== Sidebar overlay (mobile) ===== */
+.sidebar-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:149;
+}
+.sidebar-backdrop.open{display:block;}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px){
+
+  /* Topo */
+  .menu-toggle{display:flex;}
+
+  /* Sidebar vira drawer */
+  .sidebar{
+    position:fixed;left:-260px;top:0;height:100vh;z-index:150;
+    width:240px;transition:left .25s ease;
+    overflow-y:auto;
+  }
+  .sidebar.open{left:0;}
+
+  /* Main ocupa 100% */
+  .main{width:100%;min-width:0;}
+
+  /* Topbar: empurra conteúdo para dar espaço ao botão hambúrguer */
+  .topbar{padding:0 14px 0 68px;}
+  .topbar h1{font-size:16px;}
+  .topbar .crumb{font-size:11px;}
+
+  /* Oculta botões do topbar que não cabem */
+  #btn-criar-tarefa, #btn-agendar{display:none;}
+  .topbar-user .btn-logout span, .topbar-user .topbar-badge{display:none;}
+
+  /* Content padding menor */
+  .content{padding:16px 12px;}
+
+  /* Grids adaptados */
+  .grid-5{grid-template-columns:1fr 1fr!important;}
+  .grid-2{grid-template-columns:1fr!important;}
+  .proj-grid{grid-template-columns:1fr!important;}
+
+  /* Cards de métrica menores */
+  .metric .value{font-size:20px;}
+  .metric .label{font-size:11px;}
+
+  /* Section head em coluna */
+  .section-head{flex-direction:column;align-items:flex-start;gap:10px;}
+  .section-head > div:last-child{width:100%;display:flex;flex-wrap:wrap;gap:8px;}
+  .section-head .btn, .section-head button{flex:1;min-width:120px;justify-content:center;}
+
+  /* Kanban: scroll horizontal funciona, mas cards ficam menores */
+  .kcol{min-width:220px;}
+
+  /* Tabelas: scroll horizontal */
+  .card[style*="overflow"]{overflow-x:auto!important;}
+  table{font-size:12px;}
+  th,td{padding:9px 8px;}
+
+  /* Modal: ocupa tela quase toda */
+  .overlay{padding:10px;}
+  .modal{max-width:100%!important;border-radius:10px;}
+
+  /* Row2 vira coluna única em telas pequenas */
+  .row2{grid-template-columns:1fr!important;}
+
+  /* Calendário: scroll horizontal */
+  .cal-grid{min-width:700px;}
+
+  /* Admin grid */
+  .grid.grid-2 .card{margin-bottom:0;}
+}
+
+@media (max-width: 420px){
+  .grid-5{grid-template-columns:1fr!important;}
+  .metric .value{font-size:18px;}
+  .topbar h1{font-size:14px;}
+}
+
