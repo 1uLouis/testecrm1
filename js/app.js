@@ -243,82 +243,114 @@ function openLeadModal(colKey, idx){
   const isEdit = idx !== null && idx !== undefined;
   const lead = isEdit
     ? state.leads[colKey][idx]
-    : { name:'', instagram:'', phone:'', origin:'Instagram', description:'', sdr_name:'', closer_name:'', tag:'Novo lead' };
-  const teamOptions = (arr, selected) => arr.map(p=>`<option value="${p.name}" ${p.name===selected?'selected':''}>${p.name}</option>`).join('');
+    : { name:'', phone:'', origin:'Instagram', description:'', sdr_name:'', closer_name:'', tag:'Novo lead', instagram:'' };
+
+  const sdrOptions = state.sdrs.map(p =>
+    `<option value="${p.name}" ${p.name === lead.sdr_name ? 'selected' : ''}>${p.name}</option>`
+  ).join('');
+
   const root = document.getElementById('modals-root');
   root.innerHTML = `
     <div class="overlay show" id="lead-overlay">
       <div class="modal">
         <div class="modal-head">
           <h3>${isEdit ? 'Editar Lead' : 'Novo Lead'}</h3>
-          <p>Coluna: ${colDefs.find(c=>c.key===colKey).title}</p>
+          <p>Coluna: ${colDefs.find(c=>c.key===colKey)?.title || colKey}</p>
         </div>
         <div class="modal-body">
-          <div class="field"><label>Nome do Lead</label><input id="ld-name" placeholder="Nome completo" value="${lead.name}"></div>
-          <div class="row2">
-            <div class="field"><label>Instagram</label><input id="ld-instagram" placeholder="@usuario" value="${lead.instagram}"></div>
-            <div class="field"><label>Telefone</label><input id="ld-phone" placeholder="(11) 90000-0000" value="${lead.phone}"></div>
-          </div>
+
           <div class="field">
-            <label>Rede social / Origem do lead</label>
+            <label>Nome do Lead *</label>
+            <input id="ld-name" placeholder="Nome completo do lead" value="${lead.name}">
+          </div>
+
+          <div class="field">
+            <label>Origem do Lead</label>
             <select id="ld-origin">
-              ${['Instagram','WhatsApp','Telefone','Indicação','Outro'].map(o=>`<option ${o===lead.origin?'selected':''}>${o}</option>`).join('')}
+              ${['Instagram','WhatsApp','Telefone','Indicação','Outro'].map(o =>
+                `<option ${o === lead.origin ? 'selected' : ''}>${o}</option>`
+              ).join('')}
             </select>
           </div>
-          <div class="row2">
-            <div class="field">
-              <label>SDR (primeiro contato)</label>
-              <select id="ld-sdr"><option value="">Nenhum</option>${teamOptions(state.sdrs, lead.sdr_name)}</select>
-            </div>
-            <div class="field">
-              <label>Closer (fechamento)</label>
-              <select id="ld-closer"><option value="">Nenhum</option>${teamOptions(state.closers, lead.closer_name)}</select>
-            </div>
+
+          <div class="field">
+            <label>SDR responsável *</label>
+            <select id="ld-sdr">
+              <option value="">— Selecionar SDR —</option>
+              ${sdrOptions}
+            </select>
+            ${state.sdrs.length === 0 ? '<div class="helper" style="color:var(--amber-flag);">Nenhum SDR cadastrado ainda. Cadastre em Gerenciar Time.</div>' : ''}
           </div>
-          <div class="field"><label>Descrição breve do lead</label><input id="ld-desc" placeholder="Ex: interessado no plano X, pediu retorno à tarde" value="${lead.description}"></div>
+
+          <div class="field">
+            <label>Telefone / Instagram (opcional)</label>
+            <input id="ld-phone" placeholder="(11) 90000-0000 ou @usuario" value="${lead.phone || lead.instagram || ''}">
+          </div>
+
+          <div class="field">
+            <label>Observação (opcional)</label>
+            <input id="ld-desc" placeholder="Ex: interessado no plano X, pediu retorno à tarde" value="${lead.description || ''}">
+          </div>
+
         </div>
         <div class="modal-foot" style="justify-content:${isEdit ? 'space-between' : 'flex-end'};">
-          ${isEdit ? `<button class="icon-btn" id="ld-delete" style="width:auto;padding:0 12px;">Excluir</button>` : ''}
+          ${isEdit ? `<button class="icon-btn" id="ld-delete" style="width:auto;padding:0 12px;color:var(--danger);">Excluir</button>` : ''}
           <div style="display:flex;gap:10px;">
             <button class="btn" id="ld-cancel">Cancelar</button>
-            <button class="btn btn-primary" id="ld-save">${isEdit ? 'Salvar' : 'Adicionar Lead'}</button>
+            <button class="btn btn-primary" id="ld-save">${isEdit ? 'Salvar alterações' : '＋ Adicionar Lead'}</button>
           </div>
         </div>
       </div>
     </div>
   `;
+
   const $ = id => document.getElementById(id);
   $('ld-cancel').addEventListener('click', closeLeadModal);
-  $('lead-overlay').addEventListener('click', e=>{ if(e.target.id==='lead-overlay') closeLeadModal(); });
+  $('lead-overlay').addEventListener('click', e => { if(e.target.id === 'lead-overlay') closeLeadModal(); });
+
   if(isEdit){
-    $('ld-delete').addEventListener('click', async ()=>{
+    $('ld-delete').addEventListener('click', async () => {
+      if(!confirm(`Excluir o lead "${lead.name}"?`)) return;
       await deleteLead(lead.id);
-      state.leads[colKey].splice(idx,1);
+      state.leads[colKey].splice(idx, 1);
       closeLeadModal(); renderKanban(); renderGestaoLeads(); renderDashboard();
     });
   }
-  $('ld-save').addEventListener('click', async ()=>{
+
+  $('ld-save').addEventListener('click', async () => {
     const name = $('ld-name').value.trim();
-    if(!name){ $('ld-name').focus(); return; }
+    if(!name){ $('ld-name').focus(); $('ld-name').style.borderColor = 'var(--danger)'; return; }
+
+    const phoneVal = $('ld-phone').value.trim();
     const payload = {
       name,
-      instagram:   $('ld-instagram').value.trim(),
-      phone:       $('ld-phone').value.trim(),
       origin:      $('ld-origin').value,
       sdr_name:    $('ld-sdr').value,
-      closer_name: $('ld-closer').value,
+      closer_name: lead.closer_name || '',
+      phone:       phoneVal,
+      instagram:   lead.instagram   || '',
       description: $('ld-desc').value.trim(),
       tag:         lead.tag || 'Novo lead',
       meta:        `${$('ld-origin').value} · ${isEdit ? 'atualizado agora' : 'adicionado agora'}`,
       status:      colKey,
     };
+
     if(!state.leads[colKey]) state.leads[colKey] = [];
+
+    const btn = $('ld-save');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
     if(isEdit){
       await updateLead(lead.id, payload);
       state.leads[colKey][idx] = { ...lead, ...payload };
     } else {
       const saved = await insertLead(payload);
-      state.leads[colKey].push(saved || payload);
+      if(saved) {
+        state.leads[colKey].push(saved);
+      } else {
+        state.leads[colKey].push({ ...payload, id: Date.now().toString() });
+      }
     }
     closeLeadModal(); renderKanban(); renderGestaoLeads(); renderDashboard();
   });
@@ -909,66 +941,143 @@ function openTaskModal(){
 }
 function closeTaskModal(){ document.getElementById('modals-root').innerHTML=''; }
 
-/* ---------------- Modal: Lançar Venda ---------------- */
+/* ---------------- Modal: Fechar Venda ---------------- */
 function openSaleModal(){
+  // Coleta todos os leads do funil (exceto won e lost)
+  const allLeads = [];
+  colDefs.forEach(col => {
+    if(col.key !== 'won' && col.key !== 'lost'){
+      (state.leads[col.key] || []).forEach(lead => {
+        allLeads.push({ ...lead, _colKey: col.key });
+      });
+    }
+  });
+
   const root = document.getElementById('modals-root');
   root.innerHTML = `
     <div class="overlay show" id="sale-overlay">
       <div class="modal">
-        <div class="modal-head"><h3>Lançar Venda</h3><p>O valor entra na receita e soma nas vendas do closer (e do SDR, se marcado)</p></div>
+        <div class="modal-head">
+          <h3>🏆 Fechar Venda</h3>
+          <p>Selecione o lead, informe o valor e feche o negócio</p>
+        </div>
         <div class="modal-body">
-          <div class="field"><label>Cliente / Lead</label><input id="sl-cliente" placeholder="Nome do cliente"></div>
+
+          <div class="field">
+            <label>Lead / Cliente *</label>
+            <select id="sl-lead-select">
+              <option value="">— Selecionar lead do funil —</option>
+              ${allLeads.map(l => `<option value="${l.id}" data-col="${l._colKey}" data-sdr="${l.sdr_name||''}" data-closer="${l.closer_name||''}" data-name="${l.name}">${l.name}${l.sdr_name?' (SDR: '+l.sdr_name+')':''}</option>`).join('')}
+              <option value="__manual__">✏️ Digitar nome manualmente</option>
+            </select>
+          </div>
+
+          <div class="field" id="sl-manual-wrap" style="display:none;">
+            <label>Nome do Cliente (manual)</label>
+            <input id="sl-cliente-manual" placeholder="Nome do cliente">
+          </div>
+
           <div class="row2">
-            <div class="field"><label>Valor da venda (R$)</label><input id="sl-valor" type="number" min="0" step="50" placeholder="ex: 1000"></div>
             <div class="field">
-              <label>Forma de pagamento</label>
+              <label>Valor da Venda (R$) *</label>
+              <input id="sl-valor" type="number" min="0" step="50" placeholder="ex: 1000">
+            </div>
+            <div class="field">
+              <label>Forma de Pagamento</label>
               <select id="sl-forma"><option>Cartão</option><option>Boleto</option><option>Pix</option></select>
             </div>
           </div>
+
           <div class="row2">
             <div class="field">
-              <label>Closer responsável</label>
-              <select id="sl-closer"><option value="">Selecione</option>${state.closers.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}</select>
+              <label>Closer responsável *</label>
+              <select id="sl-closer">
+                <option value="">— Selecione —</option>
+                ${state.closers.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}
+              </select>
             </div>
             <div class="field">
-              <label>SDR responsável (opcional)</label>
-              <select id="sl-sdr"><option value="">Nenhum</option>${state.sdrs.map(s=>`<option value="${s.name}">${s.name}</option>`).join('')}</select>
+              <label>SDR responsável</label>
+              <select id="sl-sdr">
+                <option value="">Nenhum</option>
+                ${state.sdrs.map(s=>`<option value="${s.name}">${s.name}</option>`).join('')}
+              </select>
             </div>
           </div>
+
+          <div class="calc-box" id="sl-won-info" style="display:none;background:var(--moss-soft);border-color:#D6E4D9;">
+            <span class="l" style="color:var(--moss);">Lead será movido para ✓ Venda Ganha</span>
+            <span class="v" id="sl-lead-nome" style="color:#31492F;font-size:14px;">—</span>
+          </div>
+
         </div>
         <div class="modal-foot">
           <button class="btn" id="sl-cancel">Cancelar</button>
-          <button class="btn btn-primary" id="sl-save">Lançar Venda</button>
+          <button class="btn btn-primary" id="sl-save">🏆 Fechar Venda</button>
         </div>
       </div>
     </div>
   `;
-  const $ = id => document.getElementById(id);
-  $('sl-cancel').addEventListener('click', closeSaleModal);
-  $('sale-overlay').addEventListener('click', e=>{ if(e.target.id==='sale-overlay') closeSaleModal(); });
-  $('sl-save').addEventListener('click', async ()=>{
-    const cliente     = $('sl-cliente').value.trim();
-    const valor       = parseFloat($('sl-valor').value) || 0;
-    const closerName  = $('sl-closer').value;
-    if(!cliente || !valor || !closerName){ return; }
 
-    // Atualiza closers.sales em memória + banco
-    const closer = state.closers.find(c=>c.name===closerName);
-    if(closer){
-      closer.sales += valor;
-      await updateCloser(closer.id, { sales: closer.sales });
+  const $ = id => document.getElementById(id);
+
+  // Ao selecionar lead, preenche SDR e Closer automaticamente
+  $('sl-lead-select').addEventListener('change', () => {
+    const sel = $('sl-lead-select');
+    const opt = sel.options[sel.selectedIndex];
+    const isManual = sel.value === '__manual__';
+    const hasLead  = sel.value && !isManual;
+
+    $('sl-manual-wrap').style.display = isManual ? 'block' : 'none';
+    $('sl-won-info').style.display    = hasLead  ? 'flex'  : 'none';
+
+    if(hasLead) {
+      // Auto-preenche SDR e Closer do lead selecionado
+      const sdrName    = opt.dataset.sdr;
+      const closerName = opt.dataset.closer;
+      if(sdrName)    Array.from($('sl-sdr').options).forEach(o    => { o.selected = o.value === sdrName; });
+      if(closerName) Array.from($('sl-closer').options).forEach(o => { o.selected = o.value === closerName; });
+      $('sl-lead-nome').textContent = opt.dataset.name;
     }
-    // Atualiza sdr.sales em memória + banco
+  });
+
+  $('sl-cancel').addEventListener('click', closeSaleModal);
+  $('sale-overlay').addEventListener('click', e => { if(e.target.id === 'sale-overlay') closeSaleModal(); });
+
+  $('sl-save').addEventListener('click', async () => {
+    const sel      = $('sl-lead-select');
+    const isManual = sel.value === '__manual__';
+    const hasLead  = sel.value && !isManual;
+
+    const clienteNome = isManual
+      ? $('sl-cliente-manual').value.trim()
+      : (hasLead ? sel.options[sel.selectedIndex].dataset.name : '');
+
+    const valor      = parseFloat($('sl-valor').value) || 0;
+    const closerName = $('sl-closer').value;
+
+    if(!clienteNome){ alert('Selecione ou informe o nome do cliente.'); return; }
+    if(!valor)      { $('sl-valor').focus(); $('sl-valor').style.borderColor='var(--danger)'; return; }
+    if(!closerName) { alert('Selecione o Closer responsável.'); return; }
+
+    const btn = $('sl-save');
+    btn.disabled = true;
+    btn.textContent = 'Fechando...';
+
+    // Atualiza closer.sales
+    const closer = state.closers.find(c => c.name === closerName);
+    if(closer){ closer.sales += valor; await updateCloser(closer.id, { sales: closer.sales }); }
+
+    // Atualiza sdr.sales
     const sdrName = $('sl-sdr').value;
     if(sdrName){
-      const sdr = state.sdrs.find(s=>s.name===sdrName);
-      if(sdr){
-        sdr.sales += valor;
-        await updateSDR(sdr.id, { sales: sdr.sales });
-      }
+      const sdr = state.sdrs.find(s => s.name === sdrName);
+      if(sdr){ sdr.sales += valor; await updateSDR(sdr.id, { sales: sdr.sales }); }
     }
+
+    // Salva a venda
     const saleEntry = {
-      cliente,
+      cliente:     clienteNome,
       valor,
       forma:       $('sl-forma').value,
       closer_name: closerName,
@@ -977,8 +1086,24 @@ function openSaleModal(){
     };
     const saved = await insertSale(saleEntry);
     state.sales.push(saved || saleEntry);
+
+    // Move o lead para "won" automaticamente
+    if(hasLead) {
+      const leadId     = sel.value;
+      const leadColKey = sel.options[sel.selectedIndex].dataset.col;
+      const leadIdx    = (state.leads[leadColKey] || []).findIndex(l => l.id === leadId);
+      if(leadIdx >= 0){
+        const [movedLead] = state.leads[leadColKey].splice(leadIdx, 1);
+        if(!state.leads['won']) state.leads['won'] = [];
+        state.leads['won'].push(movedLead);
+        await updateLeadStatus(leadId, 'won');
+      }
+    }
+
     closeSaleModal();
     renderDashboard();
+    renderKanban();
+    renderGestaoLeads();
     renderTeam();
   });
 }
