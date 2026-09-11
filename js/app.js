@@ -341,19 +341,31 @@ function openLeadModal(colKey, idx){
     btn.disabled = true;
     btn.textContent = 'Salvando...';
 
+    // Remove mensagem de erro anterior
+    const errDiv = document.getElementById('ld-error-msg');
+    if(errDiv) errDiv.remove();
+
     if(isEdit){
       await updateLead(lead.id, payload);
       state.leads[colKey][idx] = { ...lead, ...payload };
+      closeLeadModal(); renderKanban(); renderGestaoLeads(); renderDashboard();
     } else {
       const saved = await insertLead(payload);
       if(saved) {
         state.leads[colKey].push(saved);
+        closeLeadModal(); renderKanban(); renderGestaoLeads(); renderDashboard();
       } else {
-        state.leads[colKey].push({ ...payload, id: Date.now().toString() });
+        // Mostra erro na tela sem fechar o modal
+        const errMsg = window._lastSupabaseError || 'Erro ao salvar. Verifique se rodou o SQL no Supabase.';
+        const errEl = document.createElement('div');
+        errEl.id = 'ld-error-msg';
+        errEl.style.cssText = 'color:#b91c1c;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:12px;';
+        errEl.textContent = 'Erro: ' + errMsg;
+        document.getElementById('ld-save').parentElement.before(errEl);
+        btn.disabled = false;
+        btn.textContent = '＋ Adicionar Lead';
       }
     }
-    closeLeadModal(); renderKanban(); renderGestaoLeads(); renderDashboard();
-  });
 }
 function closeLeadModal(){ document.getElementById('modals-root').innerHTML=''; }
 
@@ -798,18 +810,32 @@ function openVideoModal() {
     const url   = $('vid-url').value.trim();
     const cat   = $('vid-cat').value.trim();
 
-    if (!title) { $('vid-title').focus(); return; }
+    if (!title) { $('vid-title').focus(); $('vid-title').style.borderColor='var(--danger)'; return; }
     if (!url || !getYouTubeId(url)) {
       $('vid-url-error').style.display = 'block';
       $('vid-url').focus();
       return;
     }
 
+    const btn = $('vid-save');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
     const entry = { title, url, category: cat || 'Geral' };
     const saved = await insertVideo(entry);
-    state.videos.unshift(saved || entry);
-    root.innerHTML = '';
-    renderProcessos();
+
+    if(saved) {
+      state.videos.unshift(saved);
+      root.innerHTML = '';
+      renderProcessos();
+    } else {
+      // Tabela não existe — exibe instrução clara
+      const errMsg = window._lastSupabaseError || 'Tabela não encontrada. Execute o SQL de migração no Supabase.';
+      $('vid-url-error').style.display = 'block';
+      $('vid-url-error').textContent = 'Erro ao salvar: ' + errMsg + ' (copie o SQL acima e cole no Supabase → SQL Editor)';
+      btn.disabled = false;
+      btn.textContent = 'Adicionar Vídeo';
+    }
   });
 }
 

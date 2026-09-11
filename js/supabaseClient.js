@@ -14,7 +14,12 @@ let _projectId = null;
 /* ── helpers ───────────────────────────────────────────────── */
 async function _q(fn) {
   const { data, error } = await fn;
-  if (error) { console.error('[Supabase]', error.message); return null; }
+  if (error) {
+    console.error('[Supabase ERRO]', error.message, error.details || '', error.hint || '');
+    // Exibe o erro na tela para facilitar debug
+    window._lastSupabaseError = error.message;
+    return null;
+  }
   return data;
 }
 
