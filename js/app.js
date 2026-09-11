@@ -341,7 +341,6 @@ function openLeadModal(colKey, idx){
     btn.disabled = true;
     btn.textContent = 'Salvando...';
 
-    // Remove mensagem de erro anterior
     const errDiv = document.getElementById('ld-error-msg');
     if(errDiv) errDiv.remove();
 
@@ -355,7 +354,6 @@ function openLeadModal(colKey, idx){
         state.leads[colKey].push(saved);
         closeLeadModal(); renderKanban(); renderGestaoLeads(); renderDashboard();
       } else {
-        // Mostra erro na tela sem fechar o modal
         const errMsg = window._lastSupabaseError || 'Erro ao salvar. Verifique se rodou o SQL no Supabase.';
         const errEl = document.createElement('div');
         errEl.id = 'ld-error-msg';
@@ -366,6 +364,7 @@ function openLeadModal(colKey, idx){
         btn.textContent = '＋ Adicionar Lead';
       }
     }
+  });
 }
 function closeLeadModal(){ document.getElementById('modals-root').innerHTML=''; }
 
