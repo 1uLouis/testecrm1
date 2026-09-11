@@ -153,9 +153,9 @@ function renderKanban(){
       el.draggable = true;
       el.dataset.id = lead.id;
       el.innerHTML = `
-        <div class="ktag">${lead.tag}</div>
+        <div class="ktag">${lead.tag || 'Lead'}</div>
         <div class="kname">${lead.name}</div>
-        <div class="kmeta">${lead.meta}</div>
+        <div class="kmeta">${lead.origin || lead.meta || ''}</div>
         <div class="ktags">
           ${lead.sdr_name ? `<span class="kbadge sdr">SDR: ${lead.sdr_name}</span>` : ''}
           ${lead.closer_name ? `<span class="kbadge closer">Closer: ${lead.closer_name}</span>` : ''}
@@ -373,9 +373,10 @@ function renderGestaoLeads(){
   const rows = [];
   colDefs.forEach(col=>{
     (state.leads[col.key] || []).forEach(lead=>{
+      const origem = lead.origin || (lead.meta || '').split('·')[0].trim() || '—';
       rows.push(`<tr>
         <td><div class="name-cell"><span class="dot" style="background:var(--ember)"></span>${lead.name}</div></td>
-        <td>${lead.origin || lead.meta.split('·')[0].trim()}</td>
+        <td>${origem}</td>
         <td><span class="pill pill-ember">${col.title}</span></td>
         <td>${lead.sdr_name || '—'}</td>
         <td>${lead.closer_name || '—'}</td>
