@@ -958,7 +958,7 @@ function openSaleModal(){
     <div class="overlay show" id="sale-overlay">
       <div class="modal">
         <div class="modal-head">
-          <h3>🏆 Fechar Venda</h3>
+          <h3>Fechar Venda</h3>
           <p>Selecione o lead, informe o valor e feche o negócio</p>
         </div>
         <div class="modal-body">
@@ -968,7 +968,7 @@ function openSaleModal(){
             <select id="sl-lead-select">
               <option value="">— Selecionar lead do funil —</option>
               ${allLeads.map(l => `<option value="${l.id}" data-col="${l._colKey}" data-sdr="${l.sdr_name||''}" data-closer="${l.closer_name||''}" data-name="${l.name}">${l.name}${l.sdr_name?' (SDR: '+l.sdr_name+')':''}</option>`).join('')}
-              <option value="__manual__">✏️ Digitar nome manualmente</option>
+              <option value="__manual__">Digitar nome manualmente</option>
             </select>
           </div>
 
@@ -1006,14 +1006,14 @@ function openSaleModal(){
           </div>
 
           <div class="calc-box" id="sl-won-info" style="display:none;background:var(--moss-soft);border-color:#D6E4D9;">
-            <span class="l" style="color:var(--moss);">Lead será movido para ✓ Venda Ganha</span>
+            <span class="l" style="color:var(--moss);">Lead será movido para Venda Ganha</span>
             <span class="v" id="sl-lead-nome" style="color:#31492F;font-size:14px;">—</span>
           </div>
 
         </div>
         <div class="modal-foot">
           <button class="btn" id="sl-cancel">Cancelar</button>
-          <button class="btn btn-primary" id="sl-save">🏆 Fechar Venda</button>
+          <button class="btn btn-primary" id="sl-save">＋ Fechar Venda</button>
         </div>
       </div>
     </div>
@@ -1115,6 +1115,12 @@ document.getElementById('btn-nova-tarefa-quadro').addEventListener('click', open
 document.getElementById('btn-lancar-venda').addEventListener('click', openSaleModal);
 document.getElementById('btn-agendar').addEventListener('click', ()=> openEventModal(new Date().getDay(), null));
 document.getElementById('btn-novo-evento').addEventListener('click', ()=> openEventModal(new Date().getDay(), null));
+
+// Botão Novo Lead no header do Quadro de Leads — abre modal na primeira coluna (que não seja won/lost)
+document.getElementById('btn-novo-lead-quadro')?.addEventListener('click', () => {
+  const primeiraColuna = colDefs.find(c => c.key !== 'won' && c.key !== 'lost');
+  if(primeiraColuna) openLeadModal(primeiraColuna.key, null);
+});
 
 /* ---------------- Administração: Taxas e Comissões Padrão ---------------- */
 function syncAdminFields(){
