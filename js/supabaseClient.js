@@ -226,3 +226,17 @@ async function rpcDeleteUser(userId) {
   if (error) return { error: error.message };
   return data;
 }
+
+/* ── VIDEOS (Processos) ──────────────────────────────────────*/
+async function loadVideos() {
+  return await _q(_sb.from('videos').select('*').eq('project_id', _projectId).order('created_at', { ascending: false })) || [];
+}
+
+async function insertVideo(data) {
+  const rows = await _q(_sb.from('videos').insert({ project_id: _projectId, ...data }).select());
+  return rows ? rows[0] : null;
+}
+
+async function deleteVideo(id) {
+  return await _q(_sb.from('videos').delete().eq('id', id));
+}

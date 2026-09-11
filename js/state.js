@@ -25,6 +25,7 @@ const state = {
   events: [],
   sales: [],
   projects: [],
+  videos: [],
 };
 
 const fmtBRL = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -44,6 +45,7 @@ const pageTitles = {
   tarefas:       ['Tarefas',            'Pendências do time'],
   calendario:    ['Calendário',         'Chamadas agendadas'],
   time:          ['Gerenciar Time',     'SDRs e Closers'],
+  processos:     ['Processos',          'Vídeos e materiais da equipe'],
   projetos:      ['Projetos',           'Seus projetos'],
   administracao: ['Administração',      'Configurações do projeto'],
   assistencia:   ['Assistência',        'Suporte'],

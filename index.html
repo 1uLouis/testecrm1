@@ -58,6 +58,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="18" cy="9" r="2.4"/><path d="M22 20c0-2.6-2-4.7-4.6-5"/></svg>
         Time
       </button>
+      <button class="navitem" data-page="processos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 10l4-2.5v5L10 10z" fill="currentColor" stroke="none"/></svg>
+        Processos
+      </button>
 
     </nav>
 
@@ -259,6 +263,30 @@
         </div>
         <h3 style="font-size:14px;margin-bottom:12px;">Seus Projetos</h3>
         <div class="proj-grid" id="proj-grid"></div>
+      </section>
+
+      <!-- ================= PROCESSOS ================= -->
+      <section class="page" id="page-processos">
+        <div class="section-head">
+          <div>
+            <h2>Processos</h2>
+            <p>Vídeos e materiais de treinamento da equipe — cole o link do YouTube para adicionar</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-video">＋ Adicionar Vídeo</button>
+        </div>
+
+        <!-- Filtro por categoria -->
+        <div class="tabs" id="processos-tabs" style="margin-bottom:20px;">
+          <button class="tab active" data-cat="todos">Todos</button>
+        </div>
+
+        <!-- Grid de vídeos -->
+        <div class="video-grid" id="video-grid">
+          <div class="empty" style="grid-column:1/-1;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 10l4-2.5v5L10 10z" fill="currentColor" stroke="none"/></svg>
+            Nenhum vídeo adicionado ainda
+          </div>
+        </div>
       </section>
 
       <!-- ================= ADMINISTRAÇÃO ================= -->

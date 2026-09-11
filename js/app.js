@@ -610,6 +610,179 @@ document.getElementById('btn-criar-projeto').addEventListener('click', async ()=
   renderProjects();
 });
 
+/* ---------------- Processos (Vídeos) ---------------- */
+
+/** Extrai o ID do vídeo de qualquer formato de URL do YouTube */
+function getYouTubeId(url) {
+  try {
+    const u = new URL(url.trim());
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+    return u.searchParams.get('v') || '';
+  } catch {
+    // Tenta regex como fallback
+    const m = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : '';
+  }
+}
+
+function getEmbedUrl(url) {
+  const id = getYouTubeId(url);
+  return id ? `https://www.youtube.com/embed/${id}` : null;
+}
+
+let _videoFilterCat = 'todos';
+
+function renderProcessos() {
+  const grid = document.getElementById('video-grid');
+  const tabsEl = document.getElementById('processos-tabs');
+  if (!grid || !tabsEl) return;
+
+  // Monta lista de categorias únicas
+  const cats = ['todos', ...new Set(state.videos.map(v => v.category).filter(Boolean))];
+  tabsEl.innerHTML = cats.map(c =>
+    `<button class="tab ${c === _videoFilterCat ? 'active' : ''}" data-cat="${c}">${c === 'todos' ? 'Todos' : c}</button>`
+  ).join('');
+  tabsEl.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _videoFilterCat = btn.dataset.cat;
+      renderProcessos();
+    });
+  });
+
+  const filtered = _videoFilterCat === 'todos'
+    ? state.videos
+    : state.videos.filter(v => v.category === _videoFilterCat);
+
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 10l4-2.5v5L10 10z" fill="currentColor" stroke="none"/></svg>
+      Nenhum vídeo${_videoFilterCat !== 'todos' ? ' nesta categoria' : ' adicionado ainda'}
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(v => {
+    const embedUrl = getEmbedUrl(v.url);
+    return `<div class="video-card" data-vid-id="${v.id}">
+      <div class="video-embed">
+        ${embedUrl
+          ? `<iframe src="${embedUrl}" title="${v.title}" frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen></iframe>`
+          : `<div class="video-embed-error">Link inválido</div>`}
+      </div>
+      <div class="video-card-body">
+        <div class="video-card-title">${v.title}</div>
+        ${v.category ? `<span class="pill pill-ember" style="font-size:10px;">${v.category}</span>` : ''}
+        <button class="video-del-btn" data-vid-id="${v.id}" title="Remover vídeo">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Listeners de delete (apenas admin)
+  if (window._userRole === 'admin') {
+    grid.querySelectorAll('.video-del-btn').forEach(btn => {
+      btn.style.display = 'inline-flex';
+      btn.addEventListener('click', async () => {
+        if (!confirm('Remover este vídeo?')) return;
+        await deleteVideo(btn.dataset.vidId);
+        state.videos = state.videos.filter(v => v.id !== btn.dataset.vidId);
+        renderProcessos();
+      });
+    });
+  } else {
+    grid.querySelectorAll('.video-del-btn').forEach(btn => btn.style.display = 'none');
+  }
+}
+
+function openVideoModal() {
+  const root = document.getElementById('modals-root');
+  root.innerHTML = `
+    <div class="overlay show" id="vid-overlay">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Adicionar Vídeo</h3>
+          <p>Cole o link do YouTube (pode ser não listado) e dê um nome</p>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>Título do vídeo</label>
+            <input id="vid-title" placeholder="Ex: Treinamento de objeções — Aula 1">
+          </div>
+          <div class="field">
+            <label>Link do YouTube</label>
+            <input id="vid-url" placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/...">
+            <div class="helper">Funciona com qualquer formato de link do YouTube</div>
+          </div>
+          <div class="field">
+            <label>Categoria (opcional)</label>
+            <input id="vid-cat" placeholder="Ex: Treinamento, Processo, Produto">
+          </div>
+          <!-- Preview -->
+          <div id="vid-preview" style="display:none;">
+            <div class="video-embed" style="border-radius:8px;overflow:hidden;margin-top:4px;">
+              <iframe id="vid-preview-frame" frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen></iframe>
+            </div>
+          </div>
+          <div id="vid-url-error" style="display:none;color:var(--danger);font-size:12px;margin-top:-6px;">
+            Link inválido. Use um link do YouTube válido.
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" id="vid-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="vid-save">Adicionar Vídeo</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const $ = id => document.getElementById(id);
+
+  // Preview ao digitar URL
+  $('vid-url').addEventListener('input', () => {
+    const url = $('vid-url').value.trim();
+    const embedUrl = getEmbedUrl(url);
+    const errEl = $('vid-url-error');
+    const previewEl = $('vid-preview');
+    if (url && embedUrl) {
+      $('vid-preview-frame').src = embedUrl;
+      previewEl.style.display = 'block';
+      errEl.style.display = 'none';
+    } else if (url) {
+      previewEl.style.display = 'none';
+      errEl.style.display = 'block';
+    } else {
+      previewEl.style.display = 'none';
+      errEl.style.display = 'none';
+    }
+  });
+
+  $('vid-cancel').addEventListener('click', () => { root.innerHTML = ''; });
+  $('vid-overlay').addEventListener('click', e => { if (e.target.id === 'vid-overlay') root.innerHTML = ''; });
+
+  $('vid-save').addEventListener('click', async () => {
+    const title = $('vid-title').value.trim();
+    const url   = $('vid-url').value.trim();
+    const cat   = $('vid-cat').value.trim();
+
+    if (!title) { $('vid-title').focus(); return; }
+    if (!url || !getYouTubeId(url)) {
+      $('vid-url-error').style.display = 'block';
+      $('vid-url').focus();
+      return;
+    }
+
+    const entry = { title, url, category: cat || 'Geral' };
+    const saved = await insertVideo(entry);
+    state.videos.unshift(saved || entry);
+    root.innerHTML = '';
+    renderProcessos();
+  });
+}
+
+document.getElementById('btn-add-video')?.addEventListener('click', openVideoModal);
+
 /* ---------------- Modal genérico: Adicionar SDR / Closer ---------------- */
 function openTeamModal(role){
   const isSdr = role === 'sdr';
@@ -920,7 +1093,7 @@ async function init(){
     }
 
     // 4. Dados em paralelo
-    const [sdrs, closers, leadsGrouped, tasks, events, sales, projects] = await Promise.all([
+    const [sdrs, closers, leadsGrouped, tasks, events, sales, projects, videos] = await Promise.all([
       loadSDRs(),
       loadClosers(),
       loadLeads(),
@@ -928,6 +1101,7 @@ async function init(){
       loadEvents(),
       loadSales(),
       loadAllProjects(),
+      loadVideos(),
     ]);
 
     state.sdrs     = sdrs;
@@ -936,6 +1110,7 @@ async function init(){
     state.events   = events;
     state.sales    = sales;
     state.projects = projects;
+    state.videos   = videos;
 
     // Garante que todas as colunas conhecidas existam no objeto leads
     colDefs.forEach(c=>{ state.leads[c.key] = leadsGrouped[c.key] || []; });
@@ -955,6 +1130,7 @@ async function init(){
   renderCalendario();
   renderTeam();
   renderProjects();
+  renderProcessos();
   // renderUsers() é chamado pelo auth.js após init(), somente para admins
 }
 
