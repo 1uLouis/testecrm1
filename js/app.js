@@ -243,53 +243,150 @@ function openLeadModal(colKey, idx){
   const isEdit = idx !== null && idx !== undefined;
   const lead = isEdit
     ? state.leads[colKey][idx]
-    : { name:'', phone:'', origin:'Instagram', description:'', sdr_name:'', closer_name:'', tag:'Novo lead', instagram:'' };
+    : { name:'', phone:'', email:'', instagram:'', idade:'', origin:'Instagram', description:'',
+        sdr_name:'', closer_name:'', tag:'Novo lead',
+        pipeline:'Vendas', nicho:'', investimento_mensal:'', faturamento_atual:'',
+        esta_no_digital:false, e_indicacao:false, tipo_lead:'', nivel_consciencia:'', briefing:'' };
 
   const sdrOptions = state.sdrs.map(p =>
     `<option value="${p.name}" ${p.name === lead.sdr_name ? 'selected' : ''}>${p.name}</option>`
   ).join('');
 
+  const tipoLeadOpts    = ['Emocional','Racional','Comunicativo'];
+  const nivelConsOpts   = ['Baixo','Médio','Alto'];
+
+  const segBtn = (opts, selectedVal, idHidden, dataAttr) => opts.map(o => {
+    const active = o === selectedVal;
+    return `<button type="button" class="seg-btn" data-${dataAttr}="${o}"
+      style="flex:1;padding:8px 4px;border:1px solid var(--line);border-radius:8px;
+             background:${active ? 'var(--ember)' : 'var(--surface, #fff)'};
+             color:${active ? '#fff' : 'var(--ink)'};
+             font-size:13px;font-weight:600;cursor:pointer;">${o}</button>`;
+  }).join('') + `<input type="hidden" id="${idHidden}" value="${selectedVal || ''}">`;
+
   const root = document.getElementById('modals-root');
   root.innerHTML = `
     <div class="overlay show" id="lead-overlay">
-      <div class="modal">
+      <div class="modal" style="max-width:560px;">
         <div class="modal-head">
           <h3>${isEdit ? 'Editar Lead' : 'Novo Lead'}</h3>
-          <p>Coluna: ${colDefs.find(c=>c.key===colKey)?.title || colKey}</p>
+          <p>Preencha as informações do lead</p>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="gap:20px;">
 
-          <div class="field">
-            <label>Nome do Lead *</label>
-            <input id="ld-name" placeholder="Nome completo do lead" value="${lead.name}">
+          <!-- PIPELINE -->
+          <div>
+            <div class="modal-section-label">PIPELINE</div>
+            <div class="field" style="margin-top:8px;">
+              <select id="ld-pipeline">
+                ${['Vendas','Follow-up'].map(p => `<option ${p === (lead.pipeline || 'Vendas') ? 'selected' : ''}>${p}</option>`).join('')}
+              </select>
+              <div class="helper">O lead entra na primeira etapa da pipeline escolhida.</div>
+            </div>
           </div>
 
-          <div class="field">
-            <label>Origem do Lead</label>
-            <select id="ld-origin">
-              ${['Instagram','WhatsApp','Telefone','Indicação','Outro'].map(o =>
-                `<option ${o === lead.origin ? 'selected' : ''}>${o}</option>`
-              ).join('')}
-            </select>
+          <!-- CONTATO -->
+          <div>
+            <div class="modal-section-label">CONTATO</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+              <div class="field">
+                <label>Nome <span style="color:var(--danger)">*</span></label>
+                <input id="ld-name" placeholder="Nome do lead" value="${lead.name}">
+              </div>
+              <div class="row2">
+                <div class="field">
+                  <label>Telefone <span style="color:var(--danger)">*</span></label>
+                  <input id="ld-phone" placeholder="(11) 99999-9999" value="${lead.phone || ''}">
+                </div>
+                <div class="field">
+                  <label>Email <span style="color:var(--danger)">*</span></label>
+                  <input id="ld-email" type="email" placeholder="email@exemplo.com" value="${lead.email || ''}">
+                </div>
+              </div>
+              <div class="row2">
+                <div class="field">
+                  <label>@ Instagram</label>
+                  <input id="ld-instagram" placeholder="@usuario" value="${lead.instagram || ''}">
+                </div>
+                <div class="field">
+                  <label>Idade</label>
+                  <input id="ld-idade" type="number" placeholder="25" value="${lead.idade || ''}" min="0" max="120">
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="field">
-            <label>SDR responsável *</label>
-            <select id="ld-sdr">
-              <option value="">— Selecionar SDR —</option>
-              ${sdrOptions}
-            </select>
-            ${state.sdrs.length === 0 ? '<div class="helper" style="color:var(--amber-flag);">Nenhum SDR cadastrado ainda. Cadastre em Gerenciar Time.</div>' : ''}
+          <!-- NEGÓCIO -->
+          <div>
+            <div class="modal-section-label">NEGÓCIO</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+              <div class="field">
+                <label>Nicho e Área de Atuação</label>
+                <input id="ld-nicho" placeholder="Ex: Marketing Digital" value="${lead.nicho || ''}">
+              </div>
+              <div class="row2">
+                <div class="field">
+                  <label>Investimento Mensal (R$) <span style="color:var(--danger)">*</span></label>
+                  <input id="ld-investimento" type="number" placeholder="5000" value="${lead.investimento_mensal || ''}" min="0">
+                </div>
+                <div class="field">
+                  <label>Faturamento Atual (R$)</label>
+                  <input id="ld-faturamento" type="number" placeholder="50000" value="${lead.faturamento_atual || ''}" min="0">
+                </div>
+              </div>
+              <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+                <div>
+                  <div style="font-weight:600;font-size:13px;">Está no digital?</div>
+                  <div style="font-size:11.5px;color:var(--slate);">Indica se o lead já possui presença digital.</div>
+                </div>
+                <input type="checkbox" id="ld-digital" ${lead.esta_no_digital ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
+              </label>
+              <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+                <div>
+                  <div style="font-weight:600;font-size:13px;">É indicação?</div>
+                  <div style="font-size:11.5px;color:var(--slate);">Marque se este lead chegou via indicação.</div>
+                </div>
+                <input type="checkbox" id="ld-indicacao" ${lead.e_indicacao ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
+              </label>
+            </div>
           </div>
 
-          <div class="field">
-            <label>Telefone / Instagram (opcional)</label>
-            <input id="ld-phone" placeholder="(11) 90000-0000 ou @usuario" value="${lead.phone || lead.instagram || ''}">
+          <!-- QUALIFICAÇÃO -->
+          <div>
+            <div class="modal-section-label">QUALIFICAÇÃO</div>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+              <div class="field">
+                <label>Tipo de Lead <span style="color:var(--danger)">*</span></label>
+                <div style="display:flex;gap:6px;margin-top:4px;" id="ld-tipo-wrap">
+                  ${segBtn(tipoLeadOpts, lead.tipo_lead, 'ld-tipo', 'tipo')}
+                </div>
+              </div>
+              <div class="field">
+                <label>Nível de Consciência <span style="color:var(--danger)">*</span></label>
+                <div style="display:flex;gap:6px;margin-top:4px;" id="ld-nivel-wrap">
+                  ${segBtn(nivelConsOpts, lead.nivel_consciencia, 'ld-nivel', 'nivel')}
+                </div>
+              </div>
+              <div class="field">
+                <label>Briefing <span style="color:var(--danger)">*</span></label>
+                <textarea id="ld-briefing" placeholder="Anotações e informações importantes sobre o lead..." rows="4" style="resize:vertical;font-family:inherit;font-size:13.5px;">${lead.briefing || ''}</textarea>
+              </div>
+            </div>
           </div>
 
-          <div class="field">
-            <label>Observação (opcional)</label>
-            <input id="ld-desc" placeholder="Ex: interessado no plano X, pediu retorno à tarde" value="${lead.description || ''}">
+          <!-- RESPONSÁVEIS -->
+          <div>
+            <div class="modal-section-label">RESPONSÁVEIS</div>
+            <div class="field" style="margin-top:8px;">
+              <label>SDR Responsável</label>
+              <select id="ld-sdr">
+                <option value="">Nenhum (Eu mesmo)</option>
+                ${sdrOptions}
+              </select>
+              ${state.sdrs.length === 0
+                ? '<div class="helper" style="color:var(--amber-flag);">Nenhum SDR cadastrado ainda. Cadastre em Gerenciar Time.</div>'
+                : '<div class="helper">Este lead será atribuído a você como closer.</div>'}
+            </div>
           </div>
 
         </div>
@@ -297,12 +394,35 @@ function openLeadModal(colKey, idx){
           ${isEdit ? `<button class="icon-btn" id="ld-delete" style="width:auto;padding:0 12px;color:var(--danger);">Excluir</button>` : ''}
           <div style="display:flex;gap:10px;">
             <button class="btn" id="ld-cancel">Cancelar</button>
-            <button class="btn btn-primary" id="ld-save">${isEdit ? 'Salvar alterações' : '＋ Adicionar Lead'}</button>
+            <button class="btn btn-primary" id="ld-save">${isEdit ? 'Salvar alterações' : 'Criar Lead'}</button>
           </div>
         </div>
       </div>
     </div>
   `;
+
+  // Botões segmentados — Tipo de Lead
+  document.getElementById('ld-tipo-wrap').querySelectorAll('.seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('ld-tipo-wrap').querySelectorAll('.seg-btn').forEach(b => {
+        b.style.background = '#fff'; b.style.color = 'var(--ink)';
+      });
+      btn.style.background = 'var(--ember)'; btn.style.color = '#fff';
+      document.getElementById('ld-tipo').value = btn.dataset.tipo;
+    });
+  });
+
+  // Botões segmentados — Nível de Consciência
+  document.getElementById('ld-nivel-wrap').querySelectorAll('.seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('ld-nivel-wrap').querySelectorAll('.seg-btn').forEach(b => {
+        b.style.background = '#fff'; b.style.color = 'var(--ink)';
+      });
+      btn.style.background = 'var(--ember)'; btn.style.color = '#fff';
+      document.getElementById('ld-nivel').value = btn.dataset.nivel;
+    });
+  });
+
 
   const $ = id => document.getElementById(id);
   $('ld-cancel').addEventListener('click', closeLeadModal);
@@ -321,18 +441,58 @@ function openLeadModal(colKey, idx){
     const name = $('ld-name').value.trim();
     if(!name){ $('ld-name').focus(); $('ld-name').style.borderColor = 'var(--danger)'; return; }
 
-    const phoneVal = $('ld-phone').value.trim();
+    const phone = $('ld-phone').value.trim();
+    if(!phone){ $('ld-phone').focus(); $('ld-phone').style.borderColor = 'var(--danger)'; return; }
+
+    const email = $('ld-email').value.trim();
+    if(!email){ $('ld-email').focus(); $('ld-email').style.borderColor = 'var(--danger)'; return; }
+
+    const investimento = $('ld-investimento').value.trim();
+    if(!investimento){ $('ld-investimento').focus(); $('ld-investimento').style.borderColor = 'var(--danger)'; return; }
+
+    const tipo = $('ld-tipo').value;
+    if(!tipo){
+      $('ld-tipo-wrap').style.outline = '2px solid var(--danger)';
+      $('ld-tipo-wrap').style.borderRadius = '8px';
+      setTimeout(() => { $('ld-tipo-wrap').style.outline = ''; }, 1500);
+      return;
+    }
+
+    const nivel = $('ld-nivel').value;
+    if(!nivel){
+      $('ld-nivel-wrap').style.outline = '2px solid var(--danger)';
+      $('ld-nivel-wrap').style.borderRadius = '8px';
+      setTimeout(() => { $('ld-nivel-wrap').style.outline = ''; }, 1500);
+      return;
+    }
+
+    const briefing = $('ld-briefing').value.trim();
+    if(!briefing){ $('ld-briefing').focus(); $('ld-briefing').style.borderColor = 'var(--danger)'; return; }
+
+    const pipeline = $('ld-pipeline').value;
+
     const payload = {
       name,
-      origin:      $('ld-origin').value,
-      sdr_name:    $('ld-sdr').value,
-      closer_name: lead.closer_name || '',
-      phone:       phoneVal,
-      instagram:   lead.instagram   || '',
-      description: $('ld-desc').value.trim(),
-      tag:         lead.tag || 'Novo lead',
-      meta:        `${$('ld-origin').value} · ${isEdit ? 'atualizado agora' : 'adicionado agora'}`,
-      status:      colKey,
+      phone,
+      email,
+      instagram:            $('ld-instagram').value.trim(),
+      idade:                $('ld-idade').value.trim(),
+      nicho:                $('ld-nicho').value.trim(),
+      investimento_mensal:  parseFloat(investimento) || 0,
+      faturamento_atual:    parseFloat($('ld-faturamento').value) || 0,
+      esta_no_digital:      $('ld-digital').checked,
+      e_indicacao:          $('ld-indicacao').checked,
+      tipo_lead:            tipo,
+      nivel_consciencia:    nivel,
+      briefing,
+      pipeline,
+      sdr_name:             $('ld-sdr').value,
+      closer_name:          lead.closer_name || '',
+      origin:               lead.origin || 'Instagram',
+      description:          briefing,
+      tag:                  lead.tag || 'Novo lead',
+      meta:                 `${pipeline} · ${isEdit ? 'atualizado agora' : 'adicionado agora'}`,
+      status:               colKey,
     };
 
     if(!state.leads[colKey]) state.leads[colKey] = [];
@@ -361,7 +521,7 @@ function openLeadModal(colKey, idx){
         errEl.textContent = 'Erro: ' + errMsg;
         document.getElementById('ld-save').parentElement.before(errEl);
         btn.disabled = false;
-        btn.textContent = '＋ Adicionar Lead';
+        btn.textContent = 'Criar Lead';
       }
     }
   });
