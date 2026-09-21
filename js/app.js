@@ -829,9 +829,37 @@ function getYouTubeId(url) {
   }
 }
 
+/** Extrai o ID do arquivo de qualquer formato de URL do Google Drive */
+function getDriveId(url) {
+  try {
+    const u = new URL(url.trim());
+    // Formato: drive.google.com/file/d/FILE_ID/view
+    const pathMatch = u.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (pathMatch) return pathMatch[1];
+    // Formato: drive.google.com/open?id=FILE_ID
+    return u.searchParams.get('id') || '';
+  } catch {
+    const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    return m ? m[1] : '';
+  }
+}
+
+/** Detecta o tipo de vídeo e retorna a URL de embed correta */
 function getEmbedUrl(url) {
-  const id = getYouTubeId(url);
-  return id ? `https://www.youtube.com/embed/${id}` : null;
+  const ytId = getYouTubeId(url);
+  if (ytId) return `https://www.youtube.com/embed/${ytId}`;
+
+  const driveId = getDriveId(url);
+  if (driveId) return `https://drive.google.com/file/d/${driveId}/preview`;
+
+  return null;
+}
+
+/** Retorna 'youtube', 'drive' ou null conforme o tipo de URL */
+function getVideoSource(url) {
+  if (getYouTubeId(url)) return 'youtube';
+  if (getDriveId(url)) return 'drive';
+  return null;
 }
 
 let _videoFilterCat = 'todos';
@@ -906,7 +934,7 @@ function openVideoModal() {
       <div class="modal">
         <div class="modal-head">
           <h3>Adicionar Vídeo</h3>
-          <p>Cole o link do YouTube (pode ser não listado) e dê um nome</p>
+          <p>Cole o link do YouTube ou do Google Drive e dê um nome ao vídeo</p>
         </div>
         <div class="modal-body">
           <div class="field">
@@ -914,9 +942,9 @@ function openVideoModal() {
             <input id="vid-title" placeholder="Ex: Treinamento de objeções — Aula 1">
           </div>
           <div class="field">
-            <label>Link do YouTube</label>
-            <input id="vid-url" placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/...">
-            <div class="helper">Funciona com qualquer formato de link do YouTube</div>
+            <label>Link do vídeo</label>
+            <input id="vid-url" placeholder="YouTube (youtu.be/...) ou Google Drive (drive.google.com/file/d/...)">
+            <div class="helper">Suporta YouTube (público, não listado) e Google Drive (qualquer pessoa com o link)</div>
           </div>
           <div class="field">
             <label>Categoria (opcional)</label>
@@ -931,7 +959,7 @@ function openVideoModal() {
             </div>
           </div>
           <div id="vid-url-error" style="display:none;color:var(--danger);font-size:12px;margin-top:-6px;">
-            Link inválido. Use um link do YouTube válido.
+            Link inválido. Use um link do YouTube ou do Google Drive com permissão de acesso pelo link.
           </div>
         </div>
         <div class="modal-foot">
@@ -971,8 +999,9 @@ function openVideoModal() {
     const cat   = $('vid-cat').value.trim();
 
     if (!title) { $('vid-title').focus(); $('vid-title').style.borderColor='var(--danger)'; return; }
-    if (!url || !getYouTubeId(url)) {
+    if (!url || !getVideoSource(url)) {
       $('vid-url-error').style.display = 'block';
+      $('vid-url-error').textContent = 'Link inválido. Use um link do YouTube ou do Google Drive com permissão de acesso pelo link.';
       $('vid-url').focus();
       return;
     }
