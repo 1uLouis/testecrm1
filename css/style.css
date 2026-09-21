@@ -337,8 +337,8 @@ tr:last-child td{border-bottom:none;}
 /* ===== Processos — Grid de Vídeos ===== */
 .video-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
-  gap:20px;
+  grid-template-columns:repeat(auto-fill,minmax(520px,1fr));
+  gap:24px;
 }
 .video-card{
   background:#000;
