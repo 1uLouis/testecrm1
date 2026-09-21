@@ -353,6 +353,11 @@ tr:last-child td{border-bottom:none;}
   background:#000;
   display:block;
 }
+/* PDFs ficam em formato retrato, mais fácil de ler */
+.video-card--pdf .video-embed{
+  aspect-ratio:3/4;
+  background:#f1f5f9;
+}
 .video-embed iframe{
   width:100%;
   height:100%;

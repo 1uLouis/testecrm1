@@ -814,7 +814,7 @@ document.getElementById('btn-criar-projeto').addEventListener('click', async ()=
   renderProjects();
 });
 
-/* ---------------- Processos (Vídeos) ---------------- */
+/* ---------------- Processos (Vídeos & PDFs) ---------------- */
 
 /** Extrai o ID do vídeo de qualquer formato de URL do YouTube */
 function getYouTubeId(url) {
@@ -823,7 +823,6 @@ function getYouTubeId(url) {
     if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
     return u.searchParams.get('v') || '';
   } catch {
-    // Tenta regex como fallback
     const m = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
     return m ? m[1] : '';
   }
@@ -833,10 +832,8 @@ function getYouTubeId(url) {
 function getDriveId(url) {
   try {
     const u = new URL(url.trim());
-    // Formato: drive.google.com/file/d/FILE_ID/view
     const pathMatch = u.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (pathMatch) return pathMatch[1];
-    // Formato: drive.google.com/open?id=FILE_ID
     return u.searchParams.get('id') || '';
   } catch {
     const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
@@ -844,7 +841,32 @@ function getDriveId(url) {
   }
 }
 
-/** Detecta o tipo de vídeo e retorna a URL de embed correta */
+/** Verifica se é um link direto de PDF (URL terminando em .pdf) */
+function isDirectPdf(url) {
+  try {
+    const u = new URL(url.trim());
+    return u.pathname.toLowerCase().endsWith('.pdf');
+  } catch { return false; }
+}
+
+/** Retorna 'youtube', 'drive', 'pdf' ou null */
+function getVideoSource(url) {
+  if (!url) return null;
+  if (getYouTubeId(url)) return 'youtube';
+  if (getDriveId(url)) return 'drive';
+  if (isDirectPdf(url)) return 'pdf';
+  return null;
+}
+
+/** Detecta o tipo de conteúdo baseado no campo type ou na URL */
+function getMaterialType(item) {
+  if (item.type === 'pdf') return 'pdf';
+  if (item.type === 'video') return 'video';
+  if (isDirectPdf(item.url)) return 'pdf';
+  return 'video';
+}
+
+/** Retorna a URL de embed correta para qualquer tipo de conteúdo */
 function getEmbedUrl(url) {
   const ytId = getYouTubeId(url);
   if (ytId) return `https://www.youtube.com/embed/${ytId}`;
@@ -852,15 +874,12 @@ function getEmbedUrl(url) {
   const driveId = getDriveId(url);
   if (driveId) return `https://drive.google.com/file/d/${driveId}/preview`;
 
+  if (isDirectPdf(url))
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+
   return null;
 }
 
-/** Retorna 'youtube', 'drive' ou null conforme o tipo de URL */
-function getVideoSource(url) {
-  if (getYouTubeId(url)) return 'youtube';
-  if (getDriveId(url)) return 'drive';
-  return null;
-}
 
 let _videoFilterCat = 'todos';
 
@@ -895,7 +914,11 @@ function renderProcessos() {
 
   grid.innerHTML = filtered.map(v => {
     const embedUrl = getEmbedUrl(v.url);
-    return `<div class="video-card" data-vid-id="${v.id}">
+    const isPdf    = getMaterialType(v) === 'pdf';
+    const typeBadge = isPdf
+      ? `<span class="pill" style="font-size:10px;background:#dc2626;color:#fff;font-weight:700;flex-shrink:0;">PDF</span>`
+      : `<span class="pill" style="font-size:10px;background:#2563eb;color:#fff;font-weight:700;flex-shrink:0;">Vídeo</span>`;
+    return `<div class="video-card${isPdf ? ' video-card--pdf' : ''}" data-vid-id="${v.id}">
       <div class="video-embed">
         ${embedUrl
           ? `<iframe src="${embedUrl}" title="${v.title}" frameborder="0"
@@ -904,9 +927,10 @@ function renderProcessos() {
           : `<div class="video-embed-error">Link inválido</div>`}
       </div>
       <div class="video-card-body">
+        ${typeBadge}
         <div class="video-card-title">${v.title}</div>
         ${v.category ? `<span class="pill pill-ember" style="font-size:10px;">${v.category}</span>` : ''}
-        <button class="video-del-btn" data-vid-id="${v.id}" title="Remover vídeo">✕</button>
+        <button class="video-del-btn" data-vid-id="${v.id}" title="Remover material">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -916,7 +940,7 @@ function renderProcessos() {
     grid.querySelectorAll('.video-del-btn').forEach(btn => {
       btn.style.display = 'inline-flex';
       btn.addEventListener('click', async () => {
-        if (!confirm('Remover este vídeo?')) return;
+        if (!confirm('Remover este material?')) return;
         await deleteVideo(btn.dataset.vidId);
         state.videos = state.videos.filter(v => v.id !== btn.dataset.vidId);
         renderProcessos();
@@ -927,24 +951,37 @@ function renderProcessos() {
   }
 }
 
+
 function openVideoModal() {
   const root = document.getElementById('modals-root');
   root.innerHTML = `
     <div class="overlay show" id="vid-overlay">
       <div class="modal">
         <div class="modal-head">
-          <h3>Adicionar Vídeo</h3>
-          <p>Cole o link do YouTube ou do Google Drive e dê um nome ao vídeo</p>
+          <h3>Adicionar Material</h3>
+          <p>Adicione um vídeo ou PDF para a equipe acessar</p>
         </div>
         <div class="modal-body">
+          <!-- Tipo -->
           <div class="field">
-            <label>Título do vídeo</label>
+            <label>Tipo de material</label>
+            <div style="display:flex;gap:10px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:13px;">
+                <input type="radio" name="vid-type" id="vid-type-video" value="video" checked> Vídeo
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:13px;">
+                <input type="radio" name="vid-type" id="vid-type-pdf" value="pdf"> PDF
+              </label>
+            </div>
+          </div>
+          <div class="field">
+            <label id="vid-title-label">Título do vídeo</label>
             <input id="vid-title" placeholder="Ex: Treinamento de objeções — Aula 1">
           </div>
           <div class="field">
-            <label>Link do vídeo</label>
+            <label id="vid-url-label">Link do vídeo</label>
             <input id="vid-url" placeholder="YouTube (youtu.be/...) ou Google Drive (drive.google.com/file/d/...)">
-            <div class="helper">Suporta YouTube (público, não listado) e Google Drive (qualquer pessoa com o link)</div>
+            <div class="helper" id="vid-url-helper">Suporta YouTube (público/não listado) e Google Drive (qualquer pessoa com o link)</div>
           </div>
           <div class="field">
             <label>Categoria (opcional)</label>
@@ -959,17 +996,39 @@ function openVideoModal() {
             </div>
           </div>
           <div id="vid-url-error" style="display:none;color:var(--danger);font-size:12px;margin-top:-6px;">
-            Link inválido. Use um link do YouTube ou do Google Drive com permissão de acesso pelo link.
+            Link inválido.
           </div>
         </div>
         <div class="modal-foot">
           <button class="btn" id="vid-cancel">Cancelar</button>
-          <button class="btn btn-primary" id="vid-save">Adicionar Vídeo</button>
+          <button class="btn btn-primary" id="vid-save">Adicionar Material</button>
         </div>
       </div>
     </div>
   `;
   const $ = id => document.getElementById(id);
+
+  // Atualiza labels conforme o tipo selecionado
+  function updateTypeLabels() {
+    const isPdf = $('vid-type-pdf').checked;
+    $('vid-title-label').textContent = isPdf ? 'Título do PDF' : 'Título do vídeo';
+    $('vid-url-label').textContent   = isPdf ? 'Link do PDF' : 'Link do vídeo';
+    $('vid-url-helper').textContent  = isPdf
+      ? 'Cole o link do Google Drive (PDF compartilhado com "qualquer pessoa com o link") ou um link direto .pdf'
+      : 'Suporta YouTube (público/não listado) e Google Drive (qualquer pessoa com o link)';
+    $('vid-title').placeholder = isPdf ? 'Ex: Apostila de vendas — Módulo 2' : 'Ex: Treinamento de objeções — Aula 1';
+    $('vid-url').placeholder = isPdf
+      ? 'drive.google.com/file/d/... ou https://exemplo.com/arquivo.pdf'
+      : 'YouTube (youtu.be/...) ou Google Drive (drive.google.com/file/d/...)';
+    $('vid-preview').style.display = 'none';
+    $('vid-preview-frame').src = '';
+    $('vid-url-error').style.display = 'none';
+    $('vid-url').value = '';
+  }
+
+  document.querySelectorAll('input[name="vid-type"]').forEach(r =>
+    r.addEventListener('change', updateTypeLabels)
+  );
 
   // Preview ao digitar URL
   $('vid-url').addEventListener('input', () => {
@@ -984,6 +1043,7 @@ function openVideoModal() {
     } else if (url) {
       previewEl.style.display = 'none';
       errEl.style.display = 'block';
+      errEl.textContent = 'Link inválido. Verifique se o arquivo está compartilhado corretamente.';
     } else {
       previewEl.style.display = 'none';
       errEl.style.display = 'none';
@@ -997,11 +1057,14 @@ function openVideoModal() {
     const title = $('vid-title').value.trim();
     const url   = $('vid-url').value.trim();
     const cat   = $('vid-cat').value.trim();
+    const type  = $('vid-type-pdf').checked ? 'pdf' : 'video';
 
     if (!title) { $('vid-title').focus(); $('vid-title').style.borderColor='var(--danger)'; return; }
     if (!url || !getVideoSource(url)) {
       $('vid-url-error').style.display = 'block';
-      $('vid-url-error').textContent = 'Link inválido. Use um link do YouTube ou do Google Drive com permissão de acesso pelo link.';
+      $('vid-url-error').textContent = type === 'pdf'
+        ? 'Link inválido. Use um link do Google Drive com permissão "qualquer pessoa com o link" ou um link direto .pdf.'
+        : 'Link inválido. Use um link do YouTube ou do Google Drive com permissão de acesso pelo link.';
       $('vid-url').focus();
       return;
     }
@@ -1010,20 +1073,19 @@ function openVideoModal() {
     btn.disabled = true;
     btn.textContent = 'Salvando...';
 
-    const entry = { title, url, category: cat || 'Geral' };
+    const entry = { title, url, category: cat || 'Geral', type };
     const saved = await insertVideo(entry);
 
-    if(saved) {
+    if (saved) {
       state.videos.unshift(saved);
       root.innerHTML = '';
       renderProcessos();
     } else {
-      // Tabela não existe — exibe instrução clara
       const errMsg = window._lastSupabaseError || 'Tabela não encontrada. Execute o SQL de migração no Supabase.';
       $('vid-url-error').style.display = 'block';
-      $('vid-url-error').textContent = 'Erro ao salvar: ' + errMsg + ' (copie o SQL acima e cole no Supabase → SQL Editor)';
+      $('vid-url-error').textContent = 'Erro ao salvar: ' + errMsg;
       btn.disabled = false;
-      btn.textContent = 'Adicionar Vídeo';
+      btn.textContent = 'Adicionar Material';
     }
   });
 }
