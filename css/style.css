@@ -345,6 +345,8 @@ tr:last-child td{border-bottom:none;}
   border:1px solid var(--line);
   border-radius:var(--radius);
   overflow:hidden;
+  display:flex;
+  flex-direction:column;
 }
 .video-embed{
   position:relative;
@@ -352,9 +354,11 @@ tr:last-child td{border-bottom:none;}
   padding-bottom:56.25%;
   height:0;
   background:#000;
+  flex-shrink:0;
 }
 .video-embed iframe{
   position:absolute;top:0;left:0;width:100%;height:100%;
+  border:none;
 }
 .video-embed-error{
   position:absolute;top:0;left:0;width:100%;height:100%;
@@ -364,6 +368,9 @@ tr:last-child td{border-bottom:none;}
 .video-card-body{
   padding:12px 14px;
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  border-top:1px solid var(--line);
+  background:var(--panel);
+  flex-shrink:0;
 }
 .video-card-title{
   font-weight:700;font-size:13.5px;flex:1;min-width:0;
