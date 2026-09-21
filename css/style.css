@@ -341,18 +341,17 @@ tr:last-child td{border-bottom:none;}
   gap:20px;
 }
 .video-card{
-  background:var(--panel);
+  background:#000;
   border:1px solid var(--line);
   border-radius:var(--radius);
   overflow:hidden;
-  display:flex;
-  flex-direction:column;
+  position:relative;
 }
 .video-embed{
   width:100%;
   aspect-ratio:16/9;
   background:#000;
-  flex-shrink:0;
+  display:block;
 }
 .video-embed iframe{
   width:100%;
@@ -366,27 +365,47 @@ tr:last-child td{border-bottom:none;}
   display:flex;align-items:center;justify-content:center;
   color:#fff;font-size:12px;background:#222;
 }
+/* Barra de info flutua no TOPO do card, aparece ao passar o mouse */
 .video-card-body{
-  padding:12px 14px;
-  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  border-top:1px solid var(--line);
-  background:var(--panel);
-  flex-shrink:0;
+  position:absolute;
+  top:0; left:0; right:0;
+  padding:10px 12px;
+  display:flex;align-items:center;gap:8px;
+  background:linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 100%);
+  opacity:0;
+  transition:opacity 0.2s ease;
+  pointer-events:none;
+}
+.video-card:hover .video-card-body{
+  opacity:1;
+  pointer-events:auto;
 }
 .video-card-title{
-  font-weight:700;font-size:13.5px;flex:1;min-width:0;
+  font-weight:600;font-size:13px;flex:1;min-width:0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:#fff;
+  text-shadow:0 1px 3px rgba(0,0,0,0.6);
 }
 .video-del-btn{
   display:none;
-  background:transparent;border:1px solid var(--line);border-radius:6px;
+  background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.3);border-radius:6px;
   width:28px;height:28px;align-items:center;justify-content:center;
-  color:var(--slate);font-size:12px;cursor:pointer;flex-shrink:0;
+  color:#fff;font-size:12px;cursor:pointer;flex-shrink:0;
 }
-.video-del-btn:hover{color:var(--danger);border-color:var(--danger);}
+.video-del-btn:hover{background:var(--danger);border-color:var(--danger);}
+
+/* Pill de categoria no overlay */
+.video-card-body .pill{
+  opacity:0.9;
+}
 
 @media(max-width:768px){
   .video-grid{grid-template-columns:1fr;}
+  /* Em mobile mostra sempre (sem hover) */
+  .video-card-body{
+    opacity:1;
+    pointer-events:auto;
+  }
 }
 
 /* ===== Mobile menu button ===== */
