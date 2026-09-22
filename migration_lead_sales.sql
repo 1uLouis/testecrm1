@@ -1,5 +1,5 @@
 ﻿-- =============================================================
--- FERA CRM — Migração: Tabela lead_sales (Vendas por Lead)
+-- FERA CRM -- Migracao: Tabela lead_sales (Vendas por Lead)
 -- Execute no SQL Editor do Supabase Dashboard
 -- =============================================================
 
@@ -22,10 +22,12 @@ create table if not exists public.lead_sales (
   product_id        uuid references public.products(id) on delete set null,
   product_name      text not null default '',
   valor_contratado  numeric not null default 0,
-  valor_pago        numeric,
+  valor_pago        numeric,                        -- null = sem pagamento inicial
   data_venda        date not null default current_date,
-  forma_pagamento   text not null default 'Pix',
-  status_pagamento  text not null default 'Pago',
+  forma_pagamento   text not null default 'Pix',    -- Pix | Cartao | Boleto | Outro
+  status_pagamento  text not null default 'Pago',   -- Pago | Pendente | Falhou | Reembolsado
+  closer_name       text not null default '',
+  sdr_name          text not null default '',
   created_at        timestamptz not null default now()
 );
 

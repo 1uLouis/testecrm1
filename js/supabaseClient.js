@@ -261,7 +261,15 @@ async function loadLeadSales(leadId) {
   return await _q(_sb.from('lead_sales').select('*').eq('lead_id', leadId).order('created_at', { ascending: false })) || [];
 }
 
+async function loadAllLeadSales() {
+  return await _q(_sb.from('lead_sales').select('lead_id, valor_pago').eq('project_id', _projectId)) || [];
+}
+
 async function insertLeadSale(data) {
   const rows = await _q(_sb.from('lead_sales').insert({ project_id: _projectId, ...data }).select());
   return rows ? rows[0] : null;
+}
+
+async function updateLeadSale(id, data) {
+  return await _q(_sb.from('lead_sales').update(data).eq('id', id));
 }

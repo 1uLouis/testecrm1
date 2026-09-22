@@ -159,6 +159,7 @@ function renderKanban(){
         <div class="ktags">
           ${lead.sdr_name ? `<span class="kbadge sdr">SDR: ${lead.sdr_name}</span>` : ''}
           ${lead.closer_name ? `<span class="kbadge closer">Closer: ${lead.closer_name}</span>` : ''}
+          ${lead._total_pago != null ? `<span class="kbadge kbadge-pago">💰 ${fmtBRL(lead._total_pago)}</span>` : ''}
         </div>
         ${lead.description ? `<div class="kdesc">${lead.description}</div>` : ''}
       `;
@@ -637,7 +638,7 @@ function renderPanelResumo() {
     ${briefing ? `
     <div class="lp-section">
       <div class="lp-section-label">Briefing</div>
-      <div style="font-size:13.5px;line-height:1.6;color:var(--ink);">${briefing.replace(/\n/g,'<br>')}</div>
+      <div style="font-size:13.5px;line-height:1.6;color:var(--ink); overflow-wrap: anywhere; word-break: break-all;">${briefing.replace(/\n/g,'<br>')}</div>
     </div>` : ''}
 
     <div class="lp-section">
@@ -686,7 +687,7 @@ function renderPanelVendasUI() {
     : '—';
 
   const cardsHtml = sales.map(s => `
-    <div class="lp-venda-card">
+    <div class="lp-venda-card" data-sale-id="${s.id}">
       <div class="lp-venda-card-top">
         <div class="lp-venda-produto">${s.product_name || 'Sem produto'}</div>
         <div class="lp-venda-valor">${fmtBRL2(s.valor_contratado)}</div>
@@ -694,8 +695,21 @@ function renderPanelVendasUI() {
       <div class="lp-venda-meta">
         <span>${new Date(s.data_venda).toLocaleDateString('pt-BR')}</span>
         <span>${s.forma_pagamento || '—'}</span>
-        ${s.valor_pago != null ? `<span>Pago: ${fmtBRL2(s.valor_pago)}</span>` : ''}
+        ${s.valor_pago != null ? `<span style="font-weight:700;color:var(--moss);">Pago: ${fmtBRL2(s.valor_pago)}</span>` : '<span style="color:var(--slate);">Sem pagamento</span>'}
         <span class="lp-venda-status ${statusClass(s.status_pagamento)}">${s.status_pagamento}</span>
+      </div>
+      ${(s.closer_name || s.sdr_name) ? `
+      <div class="lp-venda-meta" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);">
+        ${s.closer_name ? `<span style="background:var(--ember-soft);color:var(--ember-dark);font-size:10.5px;font-weight:700;border-radius:5px;padding:2px 7px;">Closer: ${s.closer_name}</span>` : ''}
+        ${s.sdr_name ? `<span style="background:var(--moss-soft);color:var(--moss);font-size:10.5px;font-weight:700;border-radius:5px;padding:2px 7px;">SDR: ${s.sdr_name}</span>` : ''}
+      </div>` : ''}
+      <div class="lp-venda-edit-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;">
+        <label style="font-size:11.5px;font-weight:600;color:var(--slate);white-space:nowrap;">Valor pago (R$):</label>
+        <input class="lp-pago-input" type="number" min="0" step="0.01"
+          value="${s.valor_pago != null ? s.valor_pago : ''}"
+          placeholder="0,00"
+          style="flex:1;border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:13px;background:#FCFBF8;">
+        <button class="btn btn-primary lp-pago-save" style="padding:6px 12px;font-size:12.5px;white-space:nowrap;">Atualizar</button>
       </div>
     </div>
   `).join('');
@@ -735,15 +749,43 @@ function renderPanelVendasUI() {
     _panelSales = await loadLeadSales(_panelLead.id);
     renderPanelVendasUI();
   });
+
+  // Listeners para atualizar valor pago de cada venda
+  document.querySelectorAll('.lp-pago-save').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.lp-venda-card');
+      const saleId = card.dataset.saleId;
+      const input  = card.querySelector('.lp-pago-input');
+      const novoValor = input.value.trim() !== '' ? parseFloat(input.value) : null;
+
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      await updateLeadSale(saleId, { valor_pago: novoValor });
+
+      // Atualiza o objeto em memória
+      const saleObj = _panelSales.find(s => s.id === saleId);
+      if (saleObj) saleObj.valor_pago = novoValor;
+
+      // Recalcula o total pago para atualizar o kanban card
+      const totalPago = _panelSales.reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+      if (_panelLead) {
+        _panelLead._total_pago = totalPago > 0 ? totalPago : null;
+        // Atualiza também no state.leads para o kanban refletir
+        const leadInState = Object.values(state.leads).flat().find(l => l.id === _panelLead.id);
+        if (leadInState) leadInState._total_pago = _panelLead._total_pago;
+      }
+
+      renderKanban();
+      renderPanelVendasUI();
+    });
+  });
 }
 
 /* ---------- Modal: Nova Venda ---------- */
 function openNovaVendaModal() {
   const products = _panelProducts;
   const today = new Date().toISOString().split('T')[0];
-
-  // Formata data de hoje em pt-BR para exibir no botão de data
-  const todayLabel = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const productOptions = products.map(p =>
     `<option value="${p.id}" data-price="${p.price}">${p.name}</option>`
@@ -765,7 +807,7 @@ function openNovaVendaModal() {
 
         <!-- PRODUTO -->
         <div>
-          <div class="nvm-section-label">Produto</div>
+          <div class="nvm-section-label">PRODUTO</div>
           <div class="row2">
             <div class="field">
               <label>Produto</label>
@@ -784,7 +826,7 @@ function openNovaVendaModal() {
 
         <!-- DATAS -->
         <div>
-          <div class="nvm-section-label">Datas</div>
+          <div class="nvm-section-label">DATAS</div>
           <div class="field">
             <label>Data da venda</label>
             <input id="nvm-data" type="date" value="${today}">
@@ -793,7 +835,7 @@ function openNovaVendaModal() {
 
         <!-- PAGAMENTO INICIAL -->
         <div>
-          <div class="nvm-section-label">Pagamento inicial (opcional)</div>
+          <div class="nvm-section-label">PAGAMENTO INICIAL (OPCIONAL)</div>
           <div class="row2">
             <div class="field">
               <label>Valor pago agora</label>
@@ -821,6 +863,28 @@ function openNovaVendaModal() {
           </div>
         </div>
 
+        <!-- RESPONSAVEIS -->
+        <div>
+          <div class="nvm-section-label">RESPONSÁVEIS</div>
+          <div class="row2">
+            <div class="field">
+              <label>Closer responsável</label>
+              <select id="nvm-closer">
+                <option value="">— Selecione —</option>
+                ${state.closers.map(c => `<option value="${c.name}" ${c.name === (_panelLead.closer_name || '') ? 'selected' : ''}>${c.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label>SDR responsável</label>
+              <select id="nvm-sdr">
+                <option value="">Nenhum</option>
+                ${state.sdrs.map(s => `<option value="${s.name}" ${s.name === (_panelLead.sdr_name || '') ? 'selected' : ''}>${s.name}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="helper" style="margin-top:4px;">Pré-preenchido com os responsáveis do lead. O valor pago é contabilizado nas comissões deles.</div>
+        </div>
+
         <div id="nvm-error" style="display:none;color:var(--danger);background:#FEE2E2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;"></div>
       </div>
       <div class="nvm-foot">
@@ -843,7 +907,6 @@ function openNovaVendaModal() {
   });
 
   const closeModal = () => wrap.remove();
-
   $('nvm-close').addEventListener('click', closeModal);
   $('nvm-cancel').addEventListener('click', closeModal);
   wrap.addEventListener('click', e => { if (e.target === wrap) closeModal(); });
@@ -855,6 +918,8 @@ function openNovaVendaModal() {
     const dataVenda       = $('nvm-data').value;
     const forma           = $('nvm-forma').value;
     const status          = $('nvm-status').value;
+    const closerName      = $('nvm-closer').value;
+    const sdrName         = $('nvm-sdr').value;
     const prodSel         = $('nvm-produto');
     const productId       = prodSel.value || null;
     const productName     = productId
@@ -871,7 +936,8 @@ function openNovaVendaModal() {
     btn.disabled = true;
     btn.textContent = 'Salvando...';
 
-    const entry = {
+    // 1. Salva em lead_sales (venda detalhada vinculada ao lead)
+    const leadSaleEntry = {
       lead_id:          _panelLead.id,
       product_id:       productId,
       product_name:     productName,
@@ -880,15 +946,61 @@ function openNovaVendaModal() {
       data_venda:       dataVenda,
       forma_pagamento:  forma,
       status_pagamento: status,
+      closer_name:      closerName,
+      sdr_name:         sdrName,
     };
 
-    const saved = await insertLeadSale(entry);
+    const saved = await insertLeadSale(leadSaleEntry);
 
     if (saved) {
-      // Adiciona ao estado local e move lead para "won" se ainda não estiver
       _panelSales.unshift(saved);
 
-      // Move o lead para "won" automaticamente ao registrar venda
+      // Atualiza _total_pago no lead para o card do kanban refletir
+      const totalPagoAtualizado = _panelSales.reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+      if (_panelLead) {
+        _panelLead._total_pago = totalPagoAtualizado > 0 ? totalPagoAtualizado : null;
+        const leadInState = Object.values(state.leads).flat().find(l => l.id === _panelLead.id);
+        if (leadInState) leadInState._total_pago = _panelLead._total_pago;
+      }
+
+      // 2. Lança na tabela financeira (sales) que alimenta dashboard e comissões.
+      //    Usa valor_pago se preenchido; senão usa valor_contratado.
+      const valorFinanceiro = valorPago != null ? valorPago : valorContratado;
+      if (valorFinanceiro > 0) {
+        const dataFormatada = new Date(dataVenda + 'T00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const saleEntry = {
+          cliente:     _panelLead.name,
+          valor:       valorFinanceiro,
+          forma:       forma,
+          closer_name: closerName || '—',
+          sdr_name:    sdrName   || '—',
+          data:        dataFormatada,
+        };
+        const savedSale = await insertSale(saleEntry);
+        if (savedSale) {
+          state.sales.push(savedSale);
+
+          // Atualiza total de vendas do closer (para cálculo de comissão)
+          if (closerName) {
+            const closer = state.closers.find(c => c.name === closerName);
+            if (closer) {
+              closer.sales += valorFinanceiro;
+              await updateCloser(closer.id, { sales: closer.sales });
+            }
+          }
+
+          // Atualiza total de vendas do SDR
+          if (sdrName) {
+            const sdr = state.sdrs.find(s => s.name === sdrName);
+            if (sdr) {
+              sdr.sales += valorFinanceiro;
+              await updateSDR(sdr.id, { sales: sdr.sales });
+            }
+          }
+        }
+      }
+
+      // 3. Move o lead para "won" automaticamente
       if (_panelColKey !== 'won') {
         const leadIdx = (state.leads[_panelColKey] || []).findIndex(l => l.id === _panelLead.id);
         if (leadIdx >= 0) {
@@ -899,15 +1011,16 @@ function openNovaVendaModal() {
           _panelColKey = 'won';
           _panelIdx    = state.leads['won'].length - 1;
           _panelLead   = state.leads['won'][_panelIdx];
-          // Atualiza badge do painel
-          const wonDef = colDefs.find(c=>c.key==='won');
+          const wonDef = colDefs.find(c => c.key === 'won');
           document.getElementById('lp-status-badge').textContent = wonDef ? wonDef.title : 'won';
           renderKanban();
           renderGestaoLeads();
-          renderDashboard();
         }
       }
 
+      // 4. Atualiza dashboard e tabela de time
+      renderDashboard();
+      renderTeam();
       closeModal();
       renderPanelVendasUI();
     } else {
@@ -1895,7 +2008,7 @@ async function init(){
     }
 
     // 4. Dados em paralelo
-    const [sdrs, closers, leadsGrouped, tasks, events, sales, projects, videos] = await Promise.all([
+    const [sdrs, closers, leadsGrouped, tasks, events, sales, projects, videos, allLeadSales] = await Promise.all([
       loadSDRs(),
       loadClosers(),
       loadLeads(),
@@ -1904,6 +2017,7 @@ async function init(){
       loadSales(),
       loadAllProjects(),
       loadVideos(),
+      typeof loadAllLeadSales === 'function' ? loadAllLeadSales() : Promise.resolve([]),
     ]);
 
     state.sdrs     = sdrs;
@@ -1914,8 +2028,22 @@ async function init(){
     state.projects = projects;
     state.videos   = videos;
 
+    const leadTotals = {};
+    if (allLeadSales) {
+      allLeadSales.forEach(s => {
+        if (!leadTotals[s.lead_id]) leadTotals[s.lead_id] = 0;
+        leadTotals[s.lead_id] += (s.valor_pago || 0);
+      });
+    }
+
     // Garante que todas as colunas conhecidas existam no objeto leads
-    colDefs.forEach(c=>{ state.leads[c.key] = leadsGrouped[c.key] || []; });
+    colDefs.forEach(c=>{ 
+      const colLeads = leadsGrouped[c.key] || [];
+      colLeads.forEach(l => {
+        if (leadTotals[l.id] > 0) l._total_pago = leadTotals[l.id];
+      });
+      state.leads[c.key] = colLeads;
+    });
 
   } catch(err) {
     console.error('[Fera CRM] Erro ao carregar dados:', err);

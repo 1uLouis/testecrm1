@@ -706,3 +706,5 @@ tr:last-child td{border-bottom:none;}
 @media (max-width: 600px) {
   .lead-panel { width: 100vw; }
 }
+
+.kbadge-pago{background:var(--moss-soft);color:var(--moss);font-size:10.5px;}
