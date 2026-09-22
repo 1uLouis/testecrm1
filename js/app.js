@@ -761,10 +761,13 @@ function renderPanelVendasUI() {
       btn.disabled = true;
       btn.textContent = '...';
 
-      await updateLeadSale(saleId, { valor_pago: novoValor });
-
-      // Atualiza o objeto em memória
+      // Prepara os valores para atualizar comissões e dashboard global
       const saleObj = _panelSales.find(s => s.id === saleId);
+      const valorAntigoReal = (saleObj && saleObj.valor_pago != null) ? saleObj.valor_pago : (saleObj ? saleObj.valor_contratado : 0);
+      const novoValorReal = (novoValor != null) ? novoValor : (saleObj ? saleObj.valor_contratado : 0);
+      const diferenca = novoValorReal - valorAntigoReal;
+
+      await updateLeadSale(saleId, { valor_pago: novoValor });
       if (saleObj) saleObj.valor_pago = novoValor;
 
       // Recalcula o total pago para atualizar o kanban card
@@ -774,6 +777,39 @@ function renderPanelVendasUI() {
         // Atualiza também no state.leads para o kanban refletir
         const leadInState = Object.values(state.leads).flat().find(l => l.id === _panelLead.id);
         if (leadInState) leadInState._total_pago = _panelLead._total_pago;
+      }
+
+      // Sincroniza com a tabela global de vendas (dashboard e time)
+      if (diferenca !== 0 && saleObj && _panelLead) {
+        const dataFormatada = new Date(saleObj.data_venda + 'T00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        // Tenta achar a venda correspondente na lista global
+        const matchSale = state.sales.find(s => 
+          s.cliente === _panelLead.name && 
+          s.data === dataFormatada &&
+          s.valor === valorAntigoReal
+        );
+
+        if (matchSale) {
+          matchSale.valor = novoValorReal;
+          await updateSale(matchSale.id, { valor: novoValorReal });
+
+          if (matchSale.closer_name && matchSale.closer_name !== '—') {
+            const closer = state.closers.find(c => c.name === matchSale.closer_name);
+            if (closer) {
+              closer.sales += diferenca;
+              await updateCloser(closer.id, { sales: closer.sales });
+            }
+          }
+          if (matchSale.sdr_name && matchSale.sdr_name !== '—') {
+            const sdr = state.sdrs.find(s => s.name === matchSale.sdr_name);
+            if (sdr) {
+              sdr.sales += diferenca;
+              await updateSDR(sdr.id, { sales: sdr.sales });
+            }
+          }
+          renderDashboard();
+          renderTeam();
+        }
       }
 
       renderKanban();

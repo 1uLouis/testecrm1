@@ -189,6 +189,10 @@ async function insertSale(data) {
   return rows ? rows[0] : null;
 }
 
+async function updateSale(id, data) {
+  return await _q(_sb.from('sales').update(data).eq('id', id));
+}
+
 /* ── USER PROFILES ───────────────────────────────────────────
    Usado pelo auth.js para controle de acesso baseado em roles */
 
