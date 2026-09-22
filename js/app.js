@@ -164,7 +164,7 @@ function renderKanban(){
       `;
       el.addEventListener('dragstart', ()=>{ dragCtx = { col: col.key, idx, id: lead.id }; el.classList.add('dragging'); });
       el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
-      el.addEventListener('click', (e)=>{ if(e.target.tagName!=='INPUT') openLeadModal(col.key, idx); });
+      el.addEventListener('click', (e)=>{ if(e.target.tagName!=='INPUT') openLeadPanel(lead, col.key, idx); });
       cardsWrap.appendChild(el);
     });
 
@@ -527,6 +527,400 @@ function openLeadModal(colKey, idx){
   });
 }
 function closeLeadModal(){ document.getElementById('modals-root').innerHTML=''; }
+
+/* ============================================================
+   PAINEL LATERAL DO LEAD
+   ============================================================ */
+
+let _panelLead    = null; // lead atual aberto no painel
+let _panelColKey  = null;
+let _panelIdx     = null;
+let _panelTab     = 'resumo'; // aba ativa
+let _panelSales   = [];    // vendas do lead carregadas
+let _panelProducts = [];   // produtos disponíveis
+
+function openLeadPanel(lead, colKey, idx) {
+  _panelLead   = lead;
+  _panelColKey = colKey;
+  _panelIdx    = idx;
+  _panelTab    = 'resumo';
+
+  // Header
+  const initials = lead.name.trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('lp-avatar').textContent = initials;
+  document.getElementById('lp-name').textContent   = lead.name;
+
+  const colDef = colDefs.find(c=>c.key===colKey);
+  document.getElementById('lp-status-badge').textContent = colDef ? colDef.title : colKey;
+
+  // Botão editar
+  document.getElementById('lp-btn-edit').onclick = () => {
+    closeLeadPanel();
+    openLeadModal(colKey, idx);
+  };
+
+  // Tabs
+  document.querySelectorAll('.lead-panel-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.lptab === 'resumo');
+    tab.onclick = () => switchPanelTab(tab.dataset.lptab);
+  });
+
+  // Fecha ao clicar no overlay
+  document.getElementById('lead-panel-overlay').onclick = closeLeadPanel;
+  document.getElementById('lead-panel-close').onclick   = closeLeadPanel;
+
+  // Abre o painel
+  document.getElementById('lead-panel-overlay').classList.add('open');
+  document.getElementById('lead-panel').classList.add('open');
+
+  renderPanelResumo();
+}
+
+function closeLeadPanel() {
+  document.getElementById('lead-panel-overlay').classList.remove('open');
+  document.getElementById('lead-panel').classList.remove('open');
+  _panelLead = null;
+}
+
+function switchPanelTab(tab) {
+  _panelTab = tab;
+  document.querySelectorAll('.lead-panel-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.lptab === tab));
+  if (tab === 'resumo') renderPanelResumo();
+  else if (tab === 'vendas') renderPanelVendas();
+}
+
+/* ---------- Aba: Resumo ---------- */
+function renderPanelResumo() {
+  const lead = _panelLead;
+  if (!lead) return;
+
+  const fmtVal = v => v ? String(v) : '—';
+  const colDef = colDefs.find(c=>c.key===_panelColKey);
+
+  const rows = [
+    ['Nome',             lead.name],
+    ['Telefone',         lead.phone || '—'],
+    ['Email',            lead.email || '—'],
+    ['Instagram',        lead.instagram || '—'],
+    ['Origem',           lead.origin || '—'],
+    ['SDR',              lead.sdr_name || '—'],
+    ['Closer',           lead.closer_name || '—'],
+    ['Pipeline',         lead.pipeline || '—'],
+    ['Nicho',            lead.nicho || '—'],
+    ['Tipo de Lead',     lead.tipo_lead || '—'],
+    ['Nível de Consciência', lead.nivel_consciencia || '—'],
+    ['Está no Digital',  lead.esta_no_digital ? 'Sim' : 'Não'],
+    ['É Indicação',      lead.e_indicacao ? 'Sim' : 'Não'],
+    ['Investimento Mensal', lead.investimento_mensal ? 'R$ ' + Number(lead.investimento_mensal).toLocaleString('pt-BR') : '—'],
+    ['Faturamento Atual',   lead.faturamento_atual   ? 'R$ ' + Number(lead.faturamento_atual).toLocaleString('pt-BR')   : '—'],
+  ].filter(([, v]) => v && v !== '—');
+
+  const briefing = lead.briefing || lead.description || '';
+
+  document.getElementById('lead-panel-body').innerHTML = `
+    <div class="lp-section">
+      <div class="lp-section-label">Etapa atual</div>
+      <span class="lp-status-badge">${colDef ? colDef.title : _panelColKey}</span>
+    </div>
+
+    <div class="lp-section">
+      <div class="lp-section-label">Informações de Contato</div>
+      ${rows.map(([label, value]) => `
+        <div class="lp-field">
+          <div class="lp-field-label">${label}</div>
+          <div class="lp-field-value">${value}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    ${briefing ? `
+    <div class="lp-section">
+      <div class="lp-section-label">Briefing</div>
+      <div style="font-size:13.5px;line-height:1.6;color:var(--ink);">${briefing.replace(/\n/g,'<br>')}</div>
+    </div>` : ''}
+
+    <div class="lp-section">
+      <div class="lp-section-label">Etiquetas</div>
+      <div>
+        ${lead.tag
+          ? `<span class="pill pill-ember">${lead.tag}</span>`
+          : '<span style="font-size:13px;color:var(--slate);">Nenhuma etiqueta</span>'}
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- Aba: Vendas ---------- */
+async function renderPanelVendas() {
+  const lead = _panelLead;
+  if (!lead) return;
+
+  const body = document.getElementById('lead-panel-body');
+  body.innerHTML = `<div style="color:var(--slate);font-size:13px;padding:20px 0;">Carregando vendas...</div>`;
+
+  // Carrega vendas e produtos em paralelo
+  const [sales, products] = await Promise.all([
+    loadLeadSales(lead.id),
+    loadProducts(),
+  ]);
+  _panelSales    = sales;
+  _panelProducts = products;
+
+  renderPanelVendasUI();
+}
+
+function renderPanelVendasUI() {
+  const sales = _panelSales;
+
+  const statusClass = s => {
+    if (!s) return '';
+    return s.toLowerCase() === 'pago' ? 'pago'
+         : s.toLowerCase() === 'pendente' ? 'pendente'
+         : s.toLowerCase() === 'falhou' ? 'falhou'
+         : 'reembolsado';
+  };
+
+  const fmtBRL2 = v => v != null
+    ? 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})
+    : '—';
+
+  const cardsHtml = sales.map(s => `
+    <div class="lp-venda-card">
+      <div class="lp-venda-card-top">
+        <div class="lp-venda-produto">${s.product_name || 'Sem produto'}</div>
+        <div class="lp-venda-valor">${fmtBRL2(s.valor_contratado)}</div>
+      </div>
+      <div class="lp-venda-meta">
+        <span>${new Date(s.data_venda).toLocaleDateString('pt-BR')}</span>
+        <span>${s.forma_pagamento || '—'}</span>
+        ${s.valor_pago != null ? `<span>Pago: ${fmtBRL2(s.valor_pago)}</span>` : ''}
+        <span class="lp-venda-status ${statusClass(s.status_pagamento)}">${s.status_pagamento}</span>
+      </div>
+    </div>
+  `).join('');
+
+  const emptyHtml = `
+    <div class="lp-empty-vendas">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+      <p>Nenhuma venda registrada</p>
+      <span>Registre a primeira venda deste lead para acompanhar o financeiro.</span>
+      <button class="btn btn-primary" id="lp-nova-venda-empty">＋ Nova venda</button>
+    </div>
+  `;
+
+  document.getElementById('lead-panel-body').innerHTML = `
+    <div class="lp-vendas-header">
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--slate);">Vendas do Lead</div>
+        <div class="lp-vendas-count">${sales.length} venda${sales.length===1?'':'s'} registrada${sales.length===1?'':'s'}</div>
+      </div>
+      <div class="lp-vendas-actions">
+        <button class="btn" id="lp-refresh-vendas" title="Recarregar" style="padding:7px 10px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/>
+          </svg>
+        </button>
+        <button class="btn btn-primary" id="lp-nova-venda" style="padding:7px 14px;font-size:13px;">＋ Nova venda</button>
+      </div>
+    </div>
+    ${sales.length === 0 ? emptyHtml : cardsHtml}
+  `;
+
+  document.getElementById('lp-nova-venda')?.addEventListener('click', openNovaVendaModal);
+  document.getElementById('lp-nova-venda-empty')?.addEventListener('click', openNovaVendaModal);
+  document.getElementById('lp-refresh-vendas')?.addEventListener('click', async () => {
+    _panelSales = await loadLeadSales(_panelLead.id);
+    renderPanelVendasUI();
+  });
+}
+
+/* ---------- Modal: Nova Venda ---------- */
+function openNovaVendaModal() {
+  const products = _panelProducts;
+  const today = new Date().toISOString().split('T')[0];
+
+  // Formata data de hoje em pt-BR para exibir no botão de data
+  const todayLabel = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const productOptions = products.map(p =>
+    `<option value="${p.id}" data-price="${p.price}">${p.name}</option>`
+  ).join('');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'nova-venda-modal-wrap';
+  wrap.id = 'nova-venda-wrap';
+  wrap.innerHTML = `
+    <div class="nova-venda-modal">
+      <div class="nvm-head">
+        <div class="nvm-head-text">
+          <h3>Nova venda</h3>
+          <p>Escolher um produto preenche o valor automaticamente. Informe o valor pago para já registrar o primeiro pagamento.</p>
+        </div>
+        <button class="nvm-close" id="nvm-close">✕</button>
+      </div>
+      <div class="nvm-body">
+
+        <!-- PRODUTO -->
+        <div>
+          <div class="nvm-section-label">Produto</div>
+          <div class="row2">
+            <div class="field">
+              <label>Produto</label>
+              <select id="nvm-produto">
+                <option value="">Sem produto</option>
+                ${productOptions}
+              </select>
+            </div>
+            <div class="field">
+              <label>Valor contratado</label>
+              <input id="nvm-valor-contratado" type="number" min="0" step="0.01" placeholder="0,00" value="0">
+              <div class="helper">Preenchido automaticamente ao escolher um produto com preço padrão.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DATAS -->
+        <div>
+          <div class="nvm-section-label">Datas</div>
+          <div class="field">
+            <label>Data da venda</label>
+            <input id="nvm-data" type="date" value="${today}">
+          </div>
+        </div>
+
+        <!-- PAGAMENTO INICIAL -->
+        <div>
+          <div class="nvm-section-label">Pagamento inicial (opcional)</div>
+          <div class="row2">
+            <div class="field">
+              <label>Valor pago agora</label>
+              <input id="nvm-valor-pago" type="number" min="0" step="0.01" placeholder="">
+              <div class="helper">Deixe em branco para registrar a venda sem pagamento.</div>
+            </div>
+            <div class="field">
+              <label>Forma de pagamento</label>
+              <select id="nvm-forma">
+                <option>Pix</option>
+                <option>Cartão</option>
+                <option>Boleto</option>
+                <option>Outro</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-top:10px;">
+            <label>Status do pagamento</label>
+            <select id="nvm-status">
+              <option value="Pago">Pago</option>
+              <option value="Pendente">Pendente</option>
+              <option value="Falhou">Falhou</option>
+              <option value="Reembolsado">Reembolsado</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="nvm-error" style="display:none;color:var(--danger);background:#FEE2E2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;"></div>
+      </div>
+      <div class="nvm-foot">
+        <button class="btn" id="nvm-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="nvm-save">＋ Adicionar venda</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(wrap);
+
+  const $ = id => document.getElementById(id);
+
+  // Auto-preenche valor ao escolher produto
+  $('nvm-produto').addEventListener('change', () => {
+    const sel = $('nvm-produto');
+    const opt = sel.options[sel.selectedIndex];
+    const price = parseFloat(opt.dataset.price) || 0;
+    if (price > 0) $('nvm-valor-contratado').value = price;
+  });
+
+  const closeModal = () => wrap.remove();
+
+  $('nvm-close').addEventListener('click', closeModal);
+  $('nvm-cancel').addEventListener('click', closeModal);
+  wrap.addEventListener('click', e => { if (e.target === wrap) closeModal(); });
+
+  $('nvm-save').addEventListener('click', async () => {
+    const valorContratado = parseFloat($('nvm-valor-contratado').value) || 0;
+    const valorPagoRaw    = $('nvm-valor-pago').value.trim();
+    const valorPago       = valorPagoRaw !== '' ? parseFloat(valorPagoRaw) : null;
+    const dataVenda       = $('nvm-data').value;
+    const forma           = $('nvm-forma').value;
+    const status          = $('nvm-status').value;
+    const prodSel         = $('nvm-produto');
+    const productId       = prodSel.value || null;
+    const productName     = productId
+      ? prodSel.options[prodSel.selectedIndex].textContent.trim()
+      : '';
+
+    if (!dataVenda) {
+      $('nvm-error').textContent = 'Informe a data da venda.';
+      $('nvm-error').style.display = 'block';
+      return;
+    }
+
+    const btn = $('nvm-save');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    const entry = {
+      lead_id:          _panelLead.id,
+      product_id:       productId,
+      product_name:     productName,
+      valor_contratado: valorContratado,
+      valor_pago:       valorPago,
+      data_venda:       dataVenda,
+      forma_pagamento:  forma,
+      status_pagamento: status,
+    };
+
+    const saved = await insertLeadSale(entry);
+
+    if (saved) {
+      // Adiciona ao estado local e move lead para "won" se ainda não estiver
+      _panelSales.unshift(saved);
+
+      // Move o lead para "won" automaticamente ao registrar venda
+      if (_panelColKey !== 'won') {
+        const leadIdx = (state.leads[_panelColKey] || []).findIndex(l => l.id === _panelLead.id);
+        if (leadIdx >= 0) {
+          const [movedLead] = state.leads[_panelColKey].splice(leadIdx, 1);
+          if (!state.leads['won']) state.leads['won'] = [];
+          state.leads['won'].push(movedLead);
+          await updateLeadStatus(_panelLead.id, 'won');
+          _panelColKey = 'won';
+          _panelIdx    = state.leads['won'].length - 1;
+          _panelLead   = state.leads['won'][_panelIdx];
+          // Atualiza badge do painel
+          const wonDef = colDefs.find(c=>c.key==='won');
+          document.getElementById('lp-status-badge').textContent = wonDef ? wonDef.title : 'won';
+          renderKanban();
+          renderGestaoLeads();
+          renderDashboard();
+        }
+      }
+
+      closeModal();
+      renderPanelVendasUI();
+    } else {
+      const errMsg = window._lastSupabaseError || 'Erro ao salvar. Execute o SQL de migração no Supabase.';
+      $('nvm-error').textContent = 'Erro: ' + errMsg;
+      $('nvm-error').style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '＋ Adicionar venda';
+    }
+  });
+}
+
+
 
 /* ---------------- Gestão de Leads ---------------- */
 function renderGestaoLeads(){

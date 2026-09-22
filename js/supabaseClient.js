@@ -245,3 +245,23 @@ async function insertVideo(data) {
 async function deleteVideo(id) {
   return await _q(_sb.from('videos').delete().eq('id', id));
 }
+
+/* ── PRODUCTS ─────────────────────────────────────────────────*/
+async function loadProducts() {
+  return await _q(_sb.from('products').select('*').eq('project_id', _projectId).order('name', { ascending: true })) || [];
+}
+
+async function insertProduct(data) {
+  const rows = await _q(_sb.from('products').insert({ project_id: _projectId, ...data }).select());
+  return rows ? rows[0] : null;
+}
+
+/* ── LEAD SALES ───────────────────────────────────────────────*/
+async function loadLeadSales(leadId) {
+  return await _q(_sb.from('lead_sales').select('*').eq('lead_id', leadId).order('created_at', { ascending: false })) || [];
+}
+
+async function insertLeadSale(data) {
+  const rows = await _q(_sb.from('lead_sales').insert({ project_id: _projectId, ...data }).select());
+  return rows ? rows[0] : null;
+}
