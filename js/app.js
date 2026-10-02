@@ -1933,7 +1933,6 @@ function closeSaleModal(){ document.getElementById('modals-root').innerHTML=''; 
 document.getElementById('btn-criar-tarefa').addEventListener('click', openTaskModal);
 document.getElementById('btn-nova-tarefa-quadro').addEventListener('click', openTaskModal);
 document.getElementById('btn-lancar-venda').addEventListener('click', openSaleModal);
-document.getElementById('btn-agendar').addEventListener('click', ()=> openEventModal(new Date().getDay(), null));
 document.getElementById('btn-novo-evento').addEventListener('click', ()=> openEventModal(new Date().getDay(), null));
 
 // Botão Novo Lead no header do Quadro de Leads — abre modal na primeira coluna (que não seja won/lost)

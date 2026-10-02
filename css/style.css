@@ -451,8 +451,6 @@ tr:last-child td{border-bottom:none;}
   .topbar h1{font-size:16px;}
   .topbar .crumb{font-size:11px;}
 
-  /* Oculta botões do topbar que não cabem */
-  #btn-criar-tarefa, #btn-agendar{display:none;}
   .topbar-user .btn-logout span, .topbar-user .topbar-badge{display:none;}
 
   /* Content padding menor */
