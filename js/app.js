@@ -265,11 +265,7 @@ function openLeadModal(colKey, idx){
 
   const segBtn = (opts, selectedVal, idHidden, dataAttr) => opts.map(o => {
     const active = o === selectedVal;
-    return `<button type="button" class="seg-btn" data-${dataAttr}="${o}"
-      style="flex:1;padding:8px 4px;border:1px solid var(--line);border-radius:8px;
-             background:${active ? 'var(--ember)' : 'var(--surface, #fff)'};
-             color:${active ? '#fff' : 'var(--ink)'};
-             font-size:13px;font-weight:600;cursor:pointer;">${o}</button>`;
+    return `<button type="button" class="seg-btn${active ? ' selected' : ''}" data-${dataAttr}="${o}">${o}</button>`;
   }).join('') + `<input type="hidden" id="${idHidden}" value="${selectedVal || ''}">`;
 
   const root = document.getElementById('modals-root');
@@ -413,9 +409,9 @@ function openLeadModal(colKey, idx){
   document.getElementById('ld-tipo-wrap').querySelectorAll('.seg-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.getElementById('ld-tipo-wrap').querySelectorAll('.seg-btn').forEach(b => {
-        b.style.background = '#fff'; b.style.color = 'var(--ink)';
+        b.classList.remove('selected');
       });
-      btn.style.background = 'var(--ember)'; btn.style.color = '#fff';
+      btn.classList.add('selected');
       document.getElementById('ld-tipo').value = btn.dataset.tipo;
     });
   });
@@ -424,9 +420,9 @@ function openLeadModal(colKey, idx){
   document.getElementById('ld-nivel-wrap').querySelectorAll('.seg-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.getElementById('ld-nivel-wrap').querySelectorAll('.seg-btn').forEach(b => {
-        b.style.background = '#fff'; b.style.color = 'var(--ink)';
+        b.classList.remove('selected');
       });
-      btn.style.background = 'var(--ember)'; btn.style.color = '#fff';
+      btn.classList.add('selected');
       document.getElementById('ld-nivel').value = btn.dataset.nivel;
     });
   });
