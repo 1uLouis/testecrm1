@@ -175,6 +175,13 @@ function renderKanban(){
       e.preventDefault();
       colEl.classList.remove('dragover');
       if(!dragCtx) return;
+      if(col.key === 'won' && dragCtx.col !== 'won'){
+        const lead = (state.leads[dragCtx.col] || []).find(item => item.id === dragCtx.id);
+        const sourceColKey = dragCtx.col;
+        dragCtx = null;
+        if(lead) openNovaVendaModal({ lead, sourceColKey });
+        return;
+      }
       const [lead] = state.leads[dragCtx.col].splice(dragCtx.idx,1);
       if(!state.leads[col.key]) state.leads[col.key] = [];
       state.leads[col.key].push(lead);
@@ -743,8 +750,8 @@ function renderPanelVendasUI() {
     ${sales.length === 0 ? emptyHtml : cardsHtml}
   `;
 
-  document.getElementById('lp-nova-venda')?.addEventListener('click', openNovaVendaModal);
-  document.getElementById('lp-nova-venda-empty')?.addEventListener('click', openNovaVendaModal);
+  document.getElementById('lp-nova-venda')?.addEventListener('click', () => openNovaVendaModal());
+  document.getElementById('lp-nova-venda-empty')?.addEventListener('click', () => openNovaVendaModal());
   document.getElementById('lp-refresh-vendas')?.addEventListener('click', async () => {
     _panelSales = await loadLeadSales(_panelLead.id);
     renderPanelVendasUI();
@@ -819,7 +826,10 @@ function renderPanelVendasUI() {
 }
 
 /* ---------- Modal: Nova Venda ---------- */
-function openNovaVendaModal() {
+function openNovaVendaModal(leadContext = null) {
+  const saleLead = leadContext ? leadContext.lead : _panelLead;
+  const sourceColKey = leadContext ? leadContext.sourceColKey : _panelColKey;
+  const isBoardFlow = Boolean(leadContext);
   const products = _panelProducts;
   const today = new Date().toISOString().split('T')[0];
 
@@ -907,14 +917,14 @@ function openNovaVendaModal() {
               <label>Closer responsável</label>
               <select id="nvm-closer">
                 <option value="">— Selecione —</option>
-                ${state.closers.map(c => `<option value="${c.name}" ${c.name === (_panelLead.closer_name || '') ? 'selected' : ''}>${c.name}</option>`).join('')}
+                ${state.closers.map(c => `<option value="${c.name}" ${c.name === (saleLead.closer_name || '') ? 'selected' : ''}>${c.name}</option>`).join('')}
               </select>
             </div>
             <div class="field">
               <label>SDR responsável</label>
               <select id="nvm-sdr">
                 <option value="">Nenhum</option>
-                ${state.sdrs.map(s => `<option value="${s.name}" ${s.name === (_panelLead.sdr_name || '') ? 'selected' : ''}>${s.name}</option>`).join('')}
+                ${state.sdrs.map(s => `<option value="${s.name}" ${s.name === (saleLead.sdr_name || '') ? 'selected' : ''}>${s.name}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -962,8 +972,15 @@ function openNovaVendaModal() {
       ? prodSel.options[prodSel.selectedIndex].textContent.trim()
       : '';
 
-    if (!dataVenda) {
-      $('nvm-error').textContent = 'Informe a data da venda.';
+    const invalidBoardSale = isBoardFlow && (
+      valorContratado <= 0 ||
+      !closerName ||
+      (valorPago != null && (!Number.isFinite(valorPago) || valorPago < 0))
+    );
+    if (!dataVenda || invalidBoardSale) {
+      $('nvm-error').textContent = isBoardFlow
+        ? 'Para registrar a venda, informe a data, um valor contratado maior que zero, o closer responsável e um valor pago válido (se informado).'
+        : 'Informe a data da venda.';
       $('nvm-error').style.display = 'block';
       return;
     }
@@ -974,7 +991,7 @@ function openNovaVendaModal() {
 
     // 1. Salva em lead_sales (venda detalhada vinculada ao lead)
     const leadSaleEntry = {
-      lead_id:          _panelLead.id,
+      lead_id:          saleLead.id,
       product_id:       productId,
       product_name:     productName,
       valor_contratado: valorContratado,
@@ -989,15 +1006,8 @@ function openNovaVendaModal() {
     const saved = await insertLeadSale(leadSaleEntry);
 
     if (saved) {
-      _panelSales.unshift(saved);
-
-      // Atualiza _total_pago no lead para o card do kanban refletir
-      const totalPagoAtualizado = _panelSales.reduce((acc, s) => acc + (s.valor_pago || 0), 0);
-      if (_panelLead) {
-        _panelLead._total_pago = totalPagoAtualizado > 0 ? totalPagoAtualizado : null;
-        const leadInState = Object.values(state.leads).flat().find(l => l.id === _panelLead.id);
-        if (leadInState) leadInState._total_pago = _panelLead._total_pago;
-      }
+      const isCurrentPanelLead = _panelLead && _panelLead.id === saleLead.id;
+      if (isCurrentPanelLead) _panelSales.unshift(saved);
 
       // 2. Lança na tabela financeira (sales) que alimenta dashboard e comissões.
       //    Usa valor_pago se preenchido; senão usa valor_contratado.
@@ -1005,7 +1015,7 @@ function openNovaVendaModal() {
       if (valorFinanceiro > 0) {
         const dataFormatada = new Date(dataVenda + 'T00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
         const saleEntry = {
-          cliente:     _panelLead.name,
+          cliente:     saleLead.name,
           valor:       valorFinanceiro,
           forma:       forma,
           closer_name: closerName || '—',
@@ -1013,44 +1023,67 @@ function openNovaVendaModal() {
           data:        dataFormatada,
         };
         const savedSale = await insertSale(saleEntry);
-        if (savedSale) {
-          state.sales.push(savedSale);
+        if (!savedSale && isBoardFlow) {
+          if (isCurrentPanelLead) _panelSales = _panelSales.filter(item => item.id !== saved.id);
+          await deleteLeadSale(saved.id);
+          $('nvm-error').textContent = 'Não foi possível registrar a venda no financeiro. O lead continua na etapa atual. ' + (window._lastSupabaseError || '');
+          $('nvm-error').style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = '＋ Adicionar venda';
+          return;
+        }
+        if (savedSale) state.sales.push(savedSale);
 
-          // Atualiza total de vendas do closer (para cálculo de comissão)
-          if (closerName) {
-            const closer = state.closers.find(c => c.name === closerName);
-            if (closer) {
-              closer.sales += valorFinanceiro;
-              await updateCloser(closer.id, { sales: closer.sales });
-            }
+        // Atualiza total de vendas do closer (para cálculo de comissão)
+        if (savedSale && closerName) {
+          const closer = state.closers.find(c => c.name === closerName);
+          if (closer) {
+            closer.sales += valorFinanceiro;
+            await updateCloser(closer.id, { sales: closer.sales });
           }
+        }
 
-          // Atualiza total de vendas do SDR
-          if (sdrName) {
-            const sdr = state.sdrs.find(s => s.name === sdrName);
-            if (sdr) {
-              sdr.sales += valorFinanceiro;
-              await updateSDR(sdr.id, { sales: sdr.sales });
-            }
+        // Atualiza total de vendas do SDR
+        if (savedSale && sdrName) {
+          const sdr = state.sdrs.find(s => s.name === sdrName);
+          if (sdr) {
+            sdr.sales += valorFinanceiro;
+            await updateSDR(sdr.id, { sales: sdr.sales });
           }
         }
       }
 
+      // Atualiza _total_pago no lead para o card do kanban refletir
+      const totalPagoAtualizado = isCurrentPanelLead
+        ? _panelSales.reduce((acc, s) => acc + (s.valor_pago || 0), 0)
+        : (saleLead._total_pago || 0) + (valorPago || 0);
+      saleLead._total_pago = totalPagoAtualizado > 0 ? totalPagoAtualizado : null;
+      const leadInState = Object.values(state.leads).flat().find(l => l.id === saleLead.id);
+      if (leadInState) leadInState._total_pago = saleLead._total_pago;
+
       // 3. Move o lead para "won" automaticamente
-      if (_panelColKey !== 'won') {
-        const leadIdx = (state.leads[_panelColKey] || []).findIndex(l => l.id === _panelLead.id);
+      if (sourceColKey !== 'won') {
+        const leadIdx = (state.leads[sourceColKey] || []).findIndex(l => l.id === saleLead.id);
         if (leadIdx >= 0) {
-          const [movedLead] = state.leads[_panelColKey].splice(leadIdx, 1);
+          const statusSaved = await updateLeadStatus(saleLead.id, 'won');
+          if (!statusSaved || statusSaved.length === 0) {
+            $('nvm-error').textContent = 'A venda foi registrada, mas não foi possível mover o lead para Venda Ganha. Atualize a página e confira a etapa do lead.';
+            $('nvm-error').style.display = 'block';
+            btn.disabled = true;
+            return;
+          }
+          const [movedLead] = state.leads[sourceColKey].splice(leadIdx, 1);
           if (!state.leads['won']) state.leads['won'] = [];
           state.leads['won'].push(movedLead);
-          await updateLeadStatus(_panelLead.id, 'won');
-          _panelColKey = 'won';
-          _panelIdx    = state.leads['won'].length - 1;
-          _panelLead   = state.leads['won'][_panelIdx];
-          const wonDef = colDefs.find(c => c.key === 'won');
-          document.getElementById('lp-status-badge').textContent = wonDef ? wonDef.title : 'won';
-          renderKanban();
-          renderGestaoLeads();
+          if (!isBoardFlow) {
+            _panelColKey = 'won';
+            _panelIdx    = state.leads['won'].length - 1;
+            _panelLead   = state.leads['won'][_panelIdx];
+            const wonDef = colDefs.find(c => c.key === 'won');
+            document.getElementById('lp-status-badge').textContent = wonDef ? wonDef.title : 'won';
+            renderKanban();
+            renderGestaoLeads();
+          }
         }
       }
 
@@ -1058,7 +1091,12 @@ function openNovaVendaModal() {
       renderDashboard();
       renderTeam();
       closeModal();
-      renderPanelVendasUI();
+      if (isBoardFlow) {
+        renderKanban();
+        renderGestaoLeads();
+      } else {
+        renderPanelVendasUI();
+      }
     } else {
       const errMsg = window._lastSupabaseError || 'Erro ao salvar. Execute o SQL de migração no Supabase.';
       $('nvm-error').textContent = 'Erro: ' + errMsg;
@@ -2044,7 +2082,7 @@ async function init(){
     }
 
     // 4. Dados em paralelo
-    const [sdrs, closers, leadsGrouped, tasks, events, sales, projects, videos, allLeadSales] = await Promise.all([
+    const [sdrs, closers, leadsGrouped, tasks, events, sales, projects, videos, allLeadSales, products] = await Promise.all([
       loadSDRs(),
       loadClosers(),
       loadLeads(),
@@ -2054,6 +2092,7 @@ async function init(){
       loadAllProjects(),
       loadVideos(),
       typeof loadAllLeadSales === 'function' ? loadAllLeadSales() : Promise.resolve([]),
+      loadProducts(),
     ]);
 
     state.sdrs     = sdrs;
@@ -2063,6 +2102,7 @@ async function init(){
     state.sales    = sales;
     state.projects = projects;
     state.videos   = videos;
+    _panelProducts = products;
 
     const leadTotals = {};
     if (allLeadSales) {

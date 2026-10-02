@@ -144,7 +144,7 @@ async function deleteLead(id) {
 }
 
 async function updateLeadStatus(id, newStatus) {
-  return await _q(_sb.from('leads').update({ status: newStatus }).eq('id', id));
+  return await _q(_sb.from('leads').update({ status: newStatus }).eq('id', id).select('id'));
 }
 
 /* ── TASKS ───────────────────────────────────────────────────*/
@@ -272,6 +272,10 @@ async function loadAllLeadSales() {
 async function insertLeadSale(data) {
   const rows = await _q(_sb.from('lead_sales').insert({ project_id: _projectId, ...data }).select());
   return rows ? rows[0] : null;
+}
+
+async function deleteLeadSale(id) {
+  return await _q(_sb.from('lead_sales').delete().eq('id', id));
 }
 
 async function updateLeadSale(id, data) {
